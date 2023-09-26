@@ -1,26 +1,44 @@
-from flask import Flask, render_template, Response, request
+from flask import Flask, render_template, Response
 import cv2
 import pytesseract
-import datetime
 import os
 import sqlite3
 
+
+# Connect to the database
 conn = sqlite3.connect('student.db')
 c = conn.cursor()
 
-# Create the student table
-c.execute('''CREATE TABLE IF NOT EXISTS students (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                parents TEXT,
-                vehicles TEXT,
-                grade INTEGER,
-                teacher TEXT,
-                classroom INTEGER,
-                license_plate TEXT,
-                released INTEGER DEFAULT 0
-            )''')
+# Drop the 'students' table if it exists
+c.execute('DROP TABLE IF EXISTS students')
 
+# Create the 'students' table with the updated schema
+c.execute('''CREATE TABLE IF NOT EXISTS students (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    parents TEXT,
+    vehicles TEXT,
+    grade INTEGER,
+    teacher TEXT,
+    classroom INTEGER,
+    license_plate TEXT,
+    released INTEGER DEFAULT 0
+)''')
+
+# Sample student data
+sample_students = [
+    ('Jon Doe', 'Jack Doe, Jane Doe', 'Yellow Jeep Wrangler', 3, 'Ms. Garza', 28, '3SAM123'),
+    ('Alice Smith', 'Bob Smith, Carol Smith', 'Red Toyota Camry', 4, 'Mr. Johnson', 28, 'ABC456'),
+    ('Ella Johnson', 'David Johnson, Sophia Johnson', 'Blue Honda Accord', 2, 'Ms. Davis', 28, 'XYZ789'),
+    # Add more students for testing here
+]
+
+# Insert sample students into the database
+for student_data in sample_students:
+    c.execute('''INSERT INTO students (name, parents, vehicles, grade, teacher, classroom, license_plate)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)''', student_data)
+
+# Commit changes and close the connection
 conn.commit()
 conn.close()
 
@@ -38,7 +56,7 @@ max_width = 400
 max_height = 200
 
 # Define the width and height frame of the cameraview
-desired_width = 640
+desired_width = 854
 desired_height = 480
 
 def generate_frames():
@@ -58,7 +76,7 @@ def generate_frames():
                 plate_region = thresholded[y:y + h, x:x + w]
 
                 plate_text = pytesseract.image_to_string(plate_region,
-                                                         config='--psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+                                                         config='--psm 12 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 0), 2)
                 cv2.putText(frame, 'License Plate: ' + plate_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1,
@@ -100,14 +118,12 @@ def release_students(classroom):
     conn = sqlite3.connect('student.db')
     c = conn.cursor()
 
-    # Retrieve students in the specified classroom who have not been released
-    c.execute('SELECT * FROM students WHERE classroom = ? AND released = 0', (classroom,))
+    c.execute('SELECT * FROM students WHERE classroom = ? AND released = 1', (classroom,))
     students = c.fetchall()
 
     conn.close()
 
     return render_template('release_students.html', students=students, classroom=classroom)
-
 @app.route('/cameraview')
 def cameraview():
     return render_template('cameraview.html')

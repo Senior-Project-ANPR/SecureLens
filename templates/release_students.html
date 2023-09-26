@@ -7,9 +7,11 @@
     <h1>Student Release for Classroom {{ classroom }}</h1>
     <ul>
         {% for student in students %}
+        {% if student[6] == classroom and student[8] == 1 %}
         <li>
             <a href="{{ url_for('student_info', student_id=student[0]) }}">{{ student[1] }}</a>
         </li>
+        {% endif %}
         {% endfor %}
     </ul>
 </body>

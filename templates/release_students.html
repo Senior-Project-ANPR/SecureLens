@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Release</title>
+</head>
+<body>
+    <h1>Student Release for Classroom {{ classroom }}</h1>
+    <ul>
+        {% for student in students %}
+        <li>
+            <a href="{{ url_for('student_info', student_id=student[0]) }}">{{ student[1] }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

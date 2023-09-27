@@ -4,10 +4,8 @@ import pytesseract
 import os
 import sqlite3
 from flask import render_template, redirect, url_for, flash
-from .forms import RegistrationForm, LoginForm
-from .auth import auth_bp  # Import your authentication blueprint
-from students_controller import students_bp
-from .recognition import recognition_bp  # Import your recognition blueprint
+
+
 
 # Connect to the database
 conn = sqlite3.connect('student.db')

@@ -3,9 +3,8 @@ import cv2
 import pytesseract
 import os
 import sqlite3
-from flask import render_template, redirect, url_for, flash
-
-
+from flask import redirect, url_for, flash
+from numpy.ma.testutils import approx
 
 # Connect to the database
 conn = sqlite3.connect('student.db')
@@ -30,8 +29,8 @@ c.execute('''CREATE TABLE IF NOT EXISTS students (
 # Sample student data
 sample_students = [
     ('Jon Doe', 'Jack Doe, Jane Doe', 'Yellow Jeep Wrangler', 3, 'Ms. Garza', 28, '3SAM123'),
-    ('Alice Smith', 'Bob Smith, Carol Smith', 'Red Toyota Camry', 4, 'Mr. Johnson', 28, 'ABC456'),
-    ('Ella Johnson', 'David Johnson, Sophia Johnson', 'Blue Honda Accord', 2, 'Ms. Davis', 28, 'XYZ789'),
+    ('Alice Smith', 'Bob Smith, Carol Smith', 'Red Toyota Camry', 4, 'Mr. Johnson', 28, 'ABC456K'),
+    ('Ella Johnson', 'David Johnson, Sophia Johnson', 'Blue Honda Accord', 2, 'Ms. Davis', 28, 'XYZ789P'),
     # Add more students for testing here
 ]
 
@@ -51,57 +50,84 @@ if not os.path.exists('captured_images'):
 
 cap = cv2.VideoCapture(0)
 
-# Define min and max dimensions for license plates
-min_width = 80
-min_height = 40
-max_width = 400
-max_height = 200
-
 # Define the width and height frame of the cameraview
 desired_width = 854
 desired_height = 480
+IGNORED_WORD = "TEXAS"
 
-def generate_frames():
+
+def generate_plates_improved():
     while True:
-        ret, frame = cap.read()
+        ret, image = cap.read()
 
-        # Resize the frame to the desired width and height
-        frame = cv2.resize(frame, (desired_width, desired_height))
+        # Check if a valid frame was obtained
+        if not ret:
+            break  # Break the loop if no frame is available
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, thresholded = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        contours, _ = cv2.findContours(thresholded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.bilateralFilter(gray, 11, 17, 17)
+        edges = cv2.Canny(gray, 170, 200)
+        cnts, new = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:30]
+        NumberPlateCount = None
 
-        for contour in contours:
-            x, y, w, h = cv2.boundingRect(contour)
-            if w > min_width and h > min_height and w < max_width and h < max_height:
-                plate_region = thresholded[y:y + h, x:x + w]
+        count = 0
+        name = 1
+        x = None
+        y = None
+        for i in cnts:
+            perimeter = cv2.arcLength(i, True)
+            approx = cv2.approxPolyDP(i, 0.02 * perimeter, True)
+            if len(approx) == 4:
+                NumberPlateCount = approx
+                x, y, w, h = cv2.boundingRect(i)
+                crp_img = image[y:y + h, x:x + w]
+                cv2.imwrite(str(name) + '.png', crp_img)
+                name += 1
 
-                plate_text = pytesseract.image_to_string(plate_region,
-                                                         config='--psm 12 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+                break
 
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 0), 2)
-                cv2.putText(frame, 'License Plate: ' + plate_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                            (0, 0, 0), 2)
+        if NumberPlateCount is not None:
+            cv2.drawContours(image, [NumberPlateCount], -1, (0, 255, 0), 3)
+        # cv2.imshow("Final Image", image)
+        # cv2.waitKey(0)
 
-                # Check if the recognized license plate is in the database and not released
-                conn = sqlite3.connect('student.db')
-                c = conn.cursor()
-                c.execute('SELECT * FROM students WHERE license_plate = ? AND released = 0', (plate_text,))
-                student = c.fetchone()
+        crp_img_loc = '1.png'
+        # cv2.imshow('Cropped', cv2.imread(crp_img_loc))
+        text = pytesseract.image_to_string(crp_img_loc,
+                                           config='--psm 12 -c tessedit_char_whitelist='
+                                                  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+        text = text.replace(IGNORED_WORD, "").strip()
+        text = text.strip()
 
-                if student:
-                    print(f"License Plate Recognized. Student: {student[1]}, Classroom: {student[6]}")
-                    # Mark the student as released in the database
-                    c.execute('UPDATE students SET released = 1 WHERE id = ?', (student[0],))
-                    conn.commit()
-                conn.close()
+        print("Number is : ", text)
 
-        _, buffer = cv2.imencode('.jpg', frame)
+        if x is not None and y is not None:
+            cv2.putText(image, "License Plate: " + text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        # cv2.imshow('Final', image)
+
+        conn = sqlite3.connect('student.db')
+        c = conn.cursor()
+        c.execute('SELECT * FROM students WHERE license_plate = ? AND released = 0', (text,))
+        student = c.fetchone()
+
+        if student:
+            print(f"License Plate Recognized. Student: {student[1]}, Classroom: {student[6]}")
+            # Mark the student as released in the database
+            c.execute('UPDATE students SET released = 1 WHERE id = ?', (student[0],))
+            conn.commit()
+        conn.close()
+
+        _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
 @app.route('/student/<int:student_id>')
 def student_info(student_id):
     conn = sqlite3.connect('student.db')
@@ -132,12 +158,13 @@ def cameraview():
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate_plates_improved(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/')
 def hello_world():
     return 'Hello World!'
 
+'''
 # Import the authentication blueprint if you're using one
 # from .auth import auth_bp
 auth_bp = Blueprint('auth', __name__)
@@ -160,7 +187,7 @@ def login():
         flash('Login successful.', 'success')
         return redirect(url_for('dashboard'))  # Redirect to the dashboard or another page
     return render_template('login.html', form=form)
-
+'''
 
 if __name__ == '__main__':
     app.run(debug=True)

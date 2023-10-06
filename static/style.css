@@ -18,24 +18,22 @@ body {
 .logo-container {
     display: flex;
     align-items: center;
-    justify-content: center; /* Align items to the right */
-    text-align: right; /* Right-align the text */
+    justify-content: center;
+    text-align: right;
     position: absolute;
-    top: 130px; /* Adjust the top position as needed */
+    top: 130px;
     left: 0;
     right: 0;
-    z-index: 1; /* Ensure it appears above other elements */
+    z-index: 1;
 }
 
-/* Style for the logo image */
 .logo img {
     max-width: 100px;
     height: auto;
     display: block;
-    margin-right: 10px; /* Add some space between the logo and text */
+    margin-right: 10px;
 }
 
-/* Style for the company name text */
 .company-name p {
     color: #CA2626;
     font-size: 20px;

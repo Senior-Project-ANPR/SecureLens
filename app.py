@@ -153,8 +153,8 @@ def video_feed():
     return Response(generate_plates_improved(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/')
-def hello_world():
-    return 'Hello World!'
+def log_in_page():
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

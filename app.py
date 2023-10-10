@@ -1,5 +1,8 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, request, redirect
 from flask_bootstrap import Bootstrap
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user
+from werkzeug.security import generate_password_hash, check_password_hash
 import cv2
 import pytesseract
 import os
@@ -42,6 +45,23 @@ conn.close()
 
 app = Flask(__name__)
 boostrap = Bootstrap(app)
+
+#Specify which database for the app to connect to and create a secret key
+#NOTE: Once we change the student database to SQLAlchemy we may have to use binds, so we can have 2 dbs
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite"
+app.config["SECRET_KEY"] = "xg7zbb5iyvcp"
+
+#Init SQLAlchemy
+db = SQLAlchemy()
+db.init_app(app)
+
+#Create the login database schema
+with app.app_context():
+    db.create_all()
+
+#Init LoginManager from Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 if not os.path.exists('captured_images'):
     os.makedirs('captured_images')
@@ -121,6 +141,30 @@ def generate_plates_improved():
 
     cap.release()
     cv2.destroyAllWindows()
+
+#Create a class for our login db called user_acct that holds an id, username, and hashed password
+class user_acct(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(250), nullable=False)
+
+#Create a user loader that takes the id of the user and returns the user_acct
+@login_manager.user_loader
+def load_user(user_id):
+    return user_acct.query.get(user_id)
+
+#Uncomment to add a test account to the login database
+#We use generate_password_hash to avoid saving plaintext passwords in our database
+# new_user = user_acct(username="test", password=generate_password_hash("test"))
+# with app.app_context():
+#     db.session.add(new_user)
+#     db.session.commit()
+
+#Uncomment to delete the test account from the login database
+# with app.app_context():
+#     user_acct.query.filter_by(username="test").delete()
+#     db.session.commit()
+
 @app.route('/student/<int:student_id>')
 def student_info(student_id):
     conn = sqlite3.connect('student.db')
@@ -152,8 +196,27 @@ def cameraview():
 def video_feed():
     return Response(generate_plates_improved(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/')
+#Our main landing page/login page. We will need to receive and send text from the page,
+#so we set up GET and POST, so we can use them
+@app.route('/', methods=["GET", "POST"])
 def log_in_page():
+    #If info is POSTed from the webpage...
+    if request.method == "POST":
+        #Save the Username and Password our user input
+        input_username = request.form.get("Username")
+        input_password = request.form.get("Password")
+        #Search the database for a user_acct with a username matching the input username
+        user = user_acct.query.filter_by(username=input_username).first()
+        #If no such user is found, redirect back to the landing page
+        if not user:
+            return redirect('/')
+        #Otherwise, if we did find a user with that username, hash the password input and compare it with
+        #the already hashed value in our database
+        if check_password_hash(user.password, input_password):
+            #If they match, log in the user and take them to the camera view page
+            login_user(user)
+            print("Database Password: ", user.password)
+            return redirect('/cameraview')
     return render_template('index.html')
 
 if __name__ == '__main__':

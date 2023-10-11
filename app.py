@@ -136,30 +136,30 @@ def video_feed():
 
 @app.route('/')
 def hello_world():
-    return 'Hello World!'
+    return render_template('index.html')
 
 # Import the authentication blueprint if you're using one
 # from .auth import auth_bp
-auth_bp = Blueprint('auth', __name__)
-app.register_blueprint(recognition_bp)
+#auth_bp = Blueprint('auth', __name__)
+#app.register_blueprint(recognition_bp)
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        # Process the registration form data and create a new user
-        flash('Registration successful. You can now log in.', 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html', form=form)
+#@app.route('/register', methods=['GET', 'POST'])
+#def register():
+#    form = RegistrationForm()
+#    if form.validate_on_submit():
+#        # Process the registration form data and create a new user
+#        flash('Registration successful. You can now log in.', 'success')
+#        return redirect(url_for('login'))
+#    return render_template('register.html', form=form)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    form = LoginForm()
-    if form.validate_on_submit():
-        # Process the login form data and authenticate the user
-        flash('Login successful.', 'success')
-        return redirect(url_for('dashboard'))  # Redirect to the dashboard or another page
-    return render_template('login.html', form=form)
+#@app.route('/login', methods=['GET', 'POST'])
+#def login():
+#    form = LoginForm()
+#    if form.validate_on_submit():
+#        # Process the login form data and authenticate the user
+#        flash('Login successful.', 'success')
+#        return redirect(url_for('dashboard'))  # Redirect to the dashboard or another page
+#    return render_template('login.html', form=form)
 
 
 if __name__ == '__main__':

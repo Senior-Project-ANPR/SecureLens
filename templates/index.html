@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <h1>Landing page woo</h1>
+        <form action="/" method="post">
+            <input placeholder="Username" username="Username">
+            <input placeholder="Password" password="Password">
+            <input type="submit" value="Submit">
+             {%for password in passwords%}
+             <div>{{post[1] + ': '[post[2]}}</div>
+             {%endfor%}
+        </form>
+    </body>
+</html>

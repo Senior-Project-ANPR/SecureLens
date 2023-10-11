@@ -63,9 +63,6 @@ with app.app_context():
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-if not os.path.exists('captured_images'):
-    os.makedirs('captured_images')
-
 cap = cv2.VideoCapture(0)
 
 desired_width = 854
@@ -155,16 +152,26 @@ def load_user(user_id):
 
 #Uncomment to add a test account to the login database
 #We use generate_password_hash to avoid saving plaintext passwords in our database
-# new_user = user_acct(username="test", password=generate_password_hash("test"))
-# with app.app_context():
-#     db.session.add(new_user)
-#     db.session.commit()
+#new_user = user_acct(username="test", password=generate_password_hash("test"))
+#with app.app_context():
+#    db.session.add(new_user)
+#    db.session.commit()
 
 #Uncomment to delete the test account from the login database
 # with app.app_context():
 #     user_acct.query.filter_by(username="test").delete()
 #     db.session.commit()
 
+@app.route('/admin_view')
+def admin_view():
+    return render_template('admin_view.html')
+@app.route('/release', methods=["POST", "GET"])
+def release():
+    if request.method == "POST":
+        input_classroom = request.form.get("classroom")
+        return redirect(f'/release/{input_classroom}')
+
+    return render_template('release.html')
 @app.route('/student/<int:student_id>')
 def student_info(student_id):
     conn = sqlite3.connect('student.db')

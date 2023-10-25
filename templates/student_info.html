@@ -5,12 +5,12 @@
 </head>
 <body>
     <h1>Student Information</h1>
-    <p>Name: {{ student[1] }}</p>
-    <p>Parents: {{ student[2] }}</p>
-    <p>Vehicles: {{ student[3] }}</p>
-    <p>Grade: {{ student[4] }}</p>
-    <p>Teacher: {{ student[5] }}</p>
-    <p>Classroom: {{ student[6] }}</p>
-    <p>License Plate: {{ student[7] }}</p>
+    <p>Name: {{ name.firstName }} {{ name.lastName }}</p>
+    {% for record in student %}
+    <p>Vehicle: {{ record.carColor }} {{ record.carMake }} {{ record.carModel }}</p>
+    <p>License Plate: {{ record.carPlate }}</p>
+    {%  endfor  %}
+    <p><a href="{{ url_for('release_students', classroom=name.classroom) }}">Classroom: {{ name.classroom }}</a></p>
+    <p>Checked Out? {{ name.checkedOut }}</p>
 </body>
 </html>

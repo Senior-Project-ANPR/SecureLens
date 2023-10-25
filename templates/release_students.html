@@ -15,12 +15,11 @@
                 </tr>
             </thead>
             <tbody>
-                {% for student in students %}
-                {% if student[6] == classroom and student[8] == 1 %}
+                {% for record in students %}
                 <tr>
-                    <td><a href="{{ url_for('student_info', student_id=student[0]) }}">{{ student[1] }}</a></td>
+                    <td><a href="{{ url_for('student_info', student_id=record.id) }}">{{ record.firstName }} {{ record.lastName }}</a></td>
+                    <td><a href="{{ url_for('checkout', student_id=record.id) }}">Checkout Student</a></td>
                 </tr>
-                {% endif %}
                 {% endfor %}
             </tbody>
         </table>

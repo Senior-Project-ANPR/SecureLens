@@ -22,8 +22,10 @@ app.config["SECRET_KEY"] = "xg7zbb5iyvcp"
 db = SQLAlchemy()
 db.init_app(app)
 
-#Create a table called student_tbl that holds all required info for our students
-#Current primary key is a combo of Student ID and License Plate #
+#Create 3 tables that will act together as our main database
+#First is student_tbl, which holds each student's info and sets up connections to the other two databases.
+#This table won't have any duplicate entries
+#Primary Key: id
 class student_tbl(db.Model):
     id = db.Column(db.Integer, unique=True, nullable=False, primary_key=True, default=0)
     firstName = db.Column(db.String, nullable=False, default="firstName")
@@ -34,6 +36,9 @@ class student_tbl(db.Model):
     car = db.relationship("car_tbl", backref="student_tbl")
     classroom = db.relationship("class_tbl", backref="student_tbl")
 
+#Second is car_tbl, which holds each car's info, as well as a reference to the students associated with the cars.
+#This table will have duplicate entries for each different student associated with a car.
+#Primary Key: carPlate + id
 class car_tbl(db.Model):
     carPlate = db.Column(db.String, nullable=False, primary_key=True, default="na")
     carMake = db.Column(db.String)
@@ -41,12 +46,16 @@ class car_tbl(db.Model):
     carColor = db.Column(db.String)
     id = db.Column(db.Integer, db.ForeignKey("student_tbl.id"), nullable=False, primary_key=True)
 
+#Third is class_tbl, which holds each classroom's info.
+#This table won't have any duplicate entries.
+#Primary Key: classNumber
 class class_tbl(db.Model):
     classNumber = db.Column(db.Integer, unique=True, nullable=False, primary_key=True, default=99999)
     grade = db.Column(db.Integer, nullable=False)
     teacher = db.Column(db.String, nullable=False)
 
-#Create a table called user_acct that holds an id, username, and hashed password
+#Create a table called user_acct that holds an id, username, and hashed password.
+#This table is separate from our main database.
 class user_acct(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)

@@ -14,7 +14,7 @@ boostrap = Bootstrap(app)
 #Create our main database session for our student database and a bind (parallel session) for our account database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite"
 app.config["SQLALCHEMY_BINDS"] = {
-    "accounts": "sqlite:///accounts.sqlite"
+    #"accounts": "sqlite:///accounts.sqlite"
 }
 app.config["SECRET_KEY"] = "xg7zbb5iyvcp"
 
@@ -25,21 +25,29 @@ db.init_app(app)
 #Create a table called student_tbl that holds all required info for our students
 #Current primary key is a combo of Student ID and License Plate #
 class student_tbl(db.Model):
-    id = db.Column(db.Integer, nullable=False, primary_key=True)
-    firstName = db.Column(db.String, nullable=False)
-    lastName = db.Column(db.String, nullable=False)
-    classroom = db.Column(db.Integer, nullable=False)
+    id = db.Column(db.Integer, unique=True, nullable=False, primary_key=True, default=0)
+    firstName = db.Column(db.String, nullable=False, default="firstName")
+    lastName = db.Column(db.String, nullable=False, default="lastName")
+    guest = db.Column(db.Boolean, nullable=False, default=False)
+    checkedOut = db.Column(db.Boolean, nullable=False, default=False)
+    classNumber = db.Column(db.Integer, db.ForeignKey("class_tbl.classNumber"), nullable=False)
+    car = db.relationship("car_tbl", backref="student_tbl")
+    classroom = db.relationship("class_tbl", backref="student_tbl")
+
+class car_tbl(db.Model):
+    carPlate = db.Column(db.String, nullable=False, primary_key=True, default="na")
     carMake = db.Column(db.String)
     carModel = db.Column(db.String)
     carColor = db.Column(db.String)
-    carPlate = db.Column(db.String, nullable=False, primary_key=True)
-    guest = db.Column(db.Boolean, nullable=False, default=False)
-    checkedOut = db.Column(db.Boolean, nullable=False, default=False)
+    id = db.Column(db.Integer, db.ForeignKey("student_tbl.id"), nullable=False, primary_key=True)
 
+class class_tbl(db.Model):
+    classNumber = db.Column(db.Integer, unique=True, nullable=False, primary_key=True, default=99999)
+    grade = db.Column(db.Integer, nullable=False)
+    teacher = db.Column(db.String, nullable=False)
 
 #Create a table called user_acct that holds an id, username, and hashed password
 class user_acct(UserMixin, db.Model):
-    __bind_key__ = "accounts"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(250), nullable=False)
@@ -108,15 +116,16 @@ def generate_plates_improved():
 
         #Define our app context so we can access the database
         with app.app_context():
-            #set tempStudent as a table whose contents are all rows attached to the read license plate
-            tempStudent = student_tbl.query.filter_by(carPlate=text).all()
+            #set tempRecords as a table whose contents are all rows attached to the read license plate
+            tempRecords = car_tbl.query.filter_by(carPlate=text).all()
             #If tempStudent is not empty, iterate through it, grab the first and last name and classroom number of
             #each row, and print them
-            if tempStudent:
-                for record in tempStudent:
-                    tempFirstName = record.firstName
-                    tempLastName = record.lastName
-                    tempClassroom = record.classroom
+            if tempRecords:
+                for record in tempRecords:
+                    studentRecord = student_tbl.query.filter_by(id=record.id).first()
+                    tempFirstName = studentRecord.firstName
+                    tempLastName = studentRecord.lastName
+                    tempClassroom = studentRecord.classNumber
                     print(f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
 
         _, buffer = cv2.imencode('.jpg', image)
@@ -174,19 +183,19 @@ def release():
     return render_template('release.html')
 @app.route('/student/<int:student_id>')
 def student_info(student_id):
-    #Query our student database for two things: a list of all rows associated with a certain id and a single row
-    #for that id
-    student = student_tbl.query.filter_by(id=student_id).all()
+    #Query our student database for the student associated with the given id, and query the car database
+    #for all cars associated with that id
+    studentCars = car_tbl.query.filter_by(id=student_id).all()
     studentName = student_tbl.query.filter_by(id=student_id).first()
     #Pass those both to our html template: the list of all rows for iterating through every vehicle, and the single
     #row for name and classroom
-    return render_template('student_info.html', student=student, name=studentName)
+    return render_template('student_info.html', cars=studentCars, name=studentName)
 
 @app.route('/release/<int:classroom>')
 def release_students(classroom):
     #Filter our student database down to only the students in the given classroom and pass that on to our
     #HTML template
-    students = student_tbl.query.filter_by(classroom=classroom).all()
+    students = student_tbl.query.filter_by(classNumber=classroom).all()
     return render_template('release_students.html', students=students, classroom=classroom)
 
 @app.route('/cameraview')
@@ -233,7 +242,7 @@ def checkout(student_id):
 
     #Get the student's classroom and redirect back to that page once we're done updating the database
     temp = student_tbl.query.filter_by(id=student_id).first()
-    classroom = temp.classroom
+    classroom = temp.classNumber
     return redirect(url_for('release_students', classroom=classroom))
 
 if __name__ == '__main__':

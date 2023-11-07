@@ -1,12 +1,13 @@
 from flask import Flask, render_template, Response, request, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import jsonify
+from flask_restful import Resource, Api
 import cv2
 import pytesseract
 import os
-import sqlite3
 
 app = Flask(__name__)
 boostrap = Bootstrap(app)
@@ -161,18 +162,22 @@ def load_user(user_id):
 #     user_acct.query.filter_by(username="test").delete()
 #     db.session.commit()
 
+
 @app.route('/admin_view')
+@login_required
 def admin_view():
     return render_template('admin_view.html')
 @app.route('/release', methods=["POST", "GET"])
-
+@login_required
 def release():
     if request.method == "POST":
         input_classroom = request.form.get("classroom")
         return redirect(f'/release/{input_classroom}')
 
     return render_template('release.html')
+
 @app.route('/student/<int:student_id>')
+@login_required
 def student_info(student_id):
     #Query our student database for two things: a list of all rows associated with a certain id and a single row
     #for that id
@@ -183,6 +188,7 @@ def student_info(student_id):
     return render_template('student_info.html', student=student, name=studentName)
 
 @app.route('/release/<int:classroom>')
+@login_required
 def release_students(classroom):
     #Filter our student database down to only the students in the given classroom and pass that on to our
     #HTML template
@@ -190,6 +196,7 @@ def release_students(classroom):
     return render_template('release_students.html', students=students, classroom=classroom)
 
 @app.route('/cameraview')
+@login_required
 def cameraview():
     return render_template('cameraview.html')
 
@@ -220,7 +227,9 @@ def log_in_page():
             return redirect('/admin_view')
     return render_template('index.html')
 
+
 @app.route('/checkout/<int:student_id>')
+@login_required
 def checkout(student_id):
     #Define the change we'll be making to the checkedOut column
     checked_out = {
@@ -235,6 +244,53 @@ def checkout(student_id):
     temp = student_tbl.query.filter_by(id=student_id).first()
     classroom = temp.classroom
     return redirect(url_for('release_students', classroom=classroom))
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect('/')
+
+api = Api(app)
+
+class StudentSearchAPI(Resource):
+    def post(self):
+        data = request.get_json()
+        student_name = data.get('student_name')
+        teacher_name = data.get('teacher_name')
+        room_number = data.get('room_number')
+
+        students = student_tbl.query.filter_by(firstName=student_name, classroom=room_number).all()
+
+        serialized_students = [{
+            'id': student.id,
+            'firstName': student.firstName,
+            'lastName': student.lastName,
+            'classroom': student.classroom,
+            'carMake': student.carMake,
+            'carModel': student.carModel,
+            'carColor': student.carColor,
+            'carPlate': student.carPlate,
+            'guest': student.guest,
+            'checkedOut': student.checkedOut
+        } for student in students]
+
+        return jsonify(serialized_students)
+
+class StudentCheckoutAPI(Resource):
+    def post(self, student_id):
+        student=student_tbl.query.filter_by(id=student_id).first()
+        if student is None:
+            return jsonify({'error' : 'Not found'}), 404
+
+        student.checkedOut = True
+        db.session.commit()
+
+        return jsonify({'message' : 'Successfully checked out the student.'})
+
+api.add_resource(StudentSearchAPI, '/api/search')
+api.add_resource(StudentCheckoutAPI, '/api/checkout/<int:student_id>')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

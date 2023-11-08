@@ -1,3 +1,4 @@
+import flask_login
 from flask import Flask, render_template, Response, request, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -155,7 +156,7 @@ def load_user(user_id):
 
 #Uncomment to add a test account to the login database
 #We use generate_password_hash to avoid saving plaintext passwords in our database
-# new_user = user_acct(username="test", password=generate_password_hash("test"))
+# new_user = user_acct(username="parent", password=generate_password_hash("test"))
 # with app.app_context():
 #     db.session.add(new_user)
 #     db.session.commit()
@@ -181,10 +182,18 @@ def load_user(user_id):
 
 @app.route('/admin_view')
 def admin_view():
+    #Authorize only admin accounts
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
     return render_template('admin_view.html')
 @app.route('/release', methods=["POST", "GET"])
 
 def release():
+    #Authorize only admin & teacher accounts
+    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
+        return redirect(url_for('log_in_page'))
+
     if request.method == "POST":
         input_classroom = request.form.get("classroom")
         return redirect(f'/release/{input_classroom}')
@@ -192,6 +201,10 @@ def release():
     return render_template('release.html')
 @app.route('/student/<int:student_id>')
 def student_info(student_id):
+    #Authorize only admin & teacher accounts
+    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
+        return redirect(url_for('log_in_page'))
+
     #Query our student database for the student associated with the given id, and query the car database
     #for all cars associated with that id
     studentCars = car_tbl.query.filter_by(id=student_id).all()
@@ -202,6 +215,10 @@ def student_info(student_id):
 
 @app.route('/release/<int:classroom>')
 def release_students(classroom):
+    #Authorize only admin & teacher accounts
+    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
+        return redirect(url_for('log_in_page'))
+
     #Filter our student database down to only the students in the given classroom and pass that on to our
     #HTML template
     students = student_tbl.query.filter_by(classNumber=classroom).all()
@@ -209,10 +226,18 @@ def release_students(classroom):
 
 @app.route('/cameraview')
 def cameraview():
+    #Authorize only admin accounts
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
     return render_template('cameraview.html')
 
 @app.route('/video_feed')
 def video_feed():
+    #Authorize only admin accounts
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
     return Response(generate_plates_improved(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 #Our main landing page/login page. We will need to receive and send text from the page,
@@ -232,14 +257,23 @@ def log_in_page():
         #Otherwise, if we did find a user with that username, hash the password input and compare it with
         #the already hashed value in our database
         if check_password_hash(user.password, input_password):
-            #If they match, log in the user and take them to the camera view page
+            #If they match, log in the user and take them to a landing page dependent on their account type
             login_user(user)
-            print("Database Password: ", user.password)
-            return redirect('/admin_view')
+            if user.accountType == "admin":
+                return redirect('/admin_view')
+            elif user.accountType == "teacher":
+                return redirect('/release')
+            else:
+                return redirect('/')
+
     return render_template('index.html')
 
 @app.route('/checkout/<int:student_id>')
 def checkout(student_id):
+    # Authorize only admin & teacher accounts
+    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
+        return redirect(url_for('log_in_page'))
+
     #Define the change we'll be making to the checkedOut column
     checked_out = {
         'checkedOut': True

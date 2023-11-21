@@ -6,8 +6,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask import jsonify
 from flask_restful import Resource, Api
 import cv2
-import pytesseract
-import os
+from ultralytics import YOLO
+import easyocr
 
 app = Flask(__name__)
 boostrap = Bootstrap(app)
@@ -54,11 +54,16 @@ with app.app_context():
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-cap = cv2.VideoCapture(0)
 
 desired_width = 854
 desired_height = 480
 IGNORED_WORD = "TEXAS"
+
+reader = easyocr.Reader(['en'])
+cap = cv2.VideoCapture(0)
+model_path = 'best.pt'
+model = YOLO(model_path)
+threshold = 0.5
 
 
 def generate_plates_improved():
@@ -69,61 +74,42 @@ def generate_plates_improved():
             break
 
         image = cv2.resize(image, (desired_width, desired_height))
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.bilateralFilter(gray, 11, 17, 17)
-        edges = cv2.Canny(gray, 170, 200)
-        cnts, new = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:30]
-        NumberPlateCount = None
+        results = model(image)[0]
 
-        count = 0
-        name = 1
-        x = None
-        y = None
-        for i in cnts:
-            perimeter = cv2.arcLength(i, True)
-            approx = cv2.approxPolyDP(i, 0.02 * perimeter, True)
-            if len(approx) == 4:
-                NumberPlateCount = approx
-                x, y, w, h = cv2.boundingRect(i)
-                crp_img = image[y:y + h, x:x + w]
-                cv2.imwrite(str(name) + '.png', crp_img)
-                name += 1
+        for result in results.boxes.data.tolist():
+            x1, y1, x2, y2, score, class_id = result
+            class_name = results.names[int(class_id)]
 
-                break
+            if score > threshold:
+                cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
+                cv2.putText(image, class_name.upper(), (int(x1), int(y1 - 10)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
 
-        if NumberPlateCount is not None:
-            cv2.drawContours(image, [NumberPlateCount], -1, (0, 255, 0), 3)
+                if class_name == 'plate':
+                    plate_image = image[int(y1):int(y2), int(x1):int(x2)]
+                    gray_plate = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY)
+                    ocr_results = reader.readtext(gray_plate)
 
-        crp_img_loc = '1.png'
-        text = pytesseract.image_to_string(crp_img_loc,
-                                           config='--psm 12 -c tessedit_char_whitelist='
-                                                  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
-        text = text.replace(IGNORED_WORD, "").strip()
-        text = text.strip()
+                    detected_text = ' '.join([item[1] for item in ocr_results]).strip()
 
-        print("Number is : ", text)
+                    if detected_text:
+                        cv2.putText(image, "License Plate: " + detected_text, (int(x1), int(y1 - 40)),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-        if x is not None and y is not None:
-            cv2.putText(image, "License Plate: " + text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-        #Define our app context so we can access the database
-        with app.app_context():
-            #set tempStudent as a table whose contents are all rows attached to the read license plate
-            tempStudent = student_tbl.query.filter_by(carPlate=text).all()
-            #If tempStudent is not empty, iterate through it, grab the first and last name and classroom number of
-            #each row, and print them
-            if tempStudent:
-                for record in tempStudent:
-                    tempFirstName = record.firstName
-                    tempLastName = record.lastName
-                    tempClassroom = record.classroom
-                    print(f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
+                    with app.app_context():
+                        tempStudent = student_tbl.query.filter_by(carPlate=detected_text).all()
+                        if tempStudent:
+                            for record in tempStudent:
+                                tempFirstName = record.firstName
+                                tempLastName = record.lastName
+                                tempClassroom = record.classroom
+                                print(
+                                    f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
 
         _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

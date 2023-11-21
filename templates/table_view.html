@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<style>
+    table{
+        font-family: Bahnschrift, sans-serif;
+        border-collapse: collapse;
+    }
+    td, th {
+        border: 1px solid #a8a8a8;
+        padding: 10px;
+    }
+
+</style>
+
+<script>
+    let sortDirection = false;
+    let student_tableData = [
+        { sid: 12345, firstName: 'Daniel', lastName: 'Seitz', checkedOut: false, guest: false },
+        { sid: 12346, firstName: 'Takumi', lastName: 'Fujiwara', checkedOut: false, guest: false },
+        { sid: 38356, firstName: 'Ruqo', lastName: 'Venasse', checkedOut: false, guest: false },
+        { sid: 29597, firstName: 'Chet', lastName: 'Ubetcha', checkedOut: false, guest: true },
+        { sid: 98442, firstName: 'Darius', lastName: 'Carbon', checkedOut: true, guest: true },
+    ];
+
+    window.onload = () => {
+        loadTableData(student_tableData);
+    }
+
+    function loadTableData(student_tableData)
+    {
+        const tableBody = document.getElementById('tableData');
+        let dataHtml = '';
+
+        for(let student of student_tableData)
+        {
+            dataHtml += `<tr><td>${student.sid}</td>
+                        <td>${student.firstName}</td>
+                        <td>${student.lastName}</td>
+                        <td>${student.checkedOut}</td>
+                        <td>${student.guest}</td></tr>`;
+        }
+        console.log(dataHtml)
+
+        tableBody.innerHTML = dataHtml;
+    }
+</script>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+
+<body>
+    <table>
+        <thead>
+        <tr>
+            <th>Student ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Checked Out?</th>
+            <th>Guest?</th>
+        </tr>
+        </thead>
+
+        <tbody id="tableData"></tbody>
+
+    </table>
+</body>
+
+</html>

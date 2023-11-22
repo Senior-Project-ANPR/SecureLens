@@ -312,6 +312,7 @@ def table_view():
         carList.append(car.carModel)
         carList.append(car.carColor)
         carList.append(car.id)
+        carList.append(car.guest)
 
     return render_template('table_view.html', students=studentList, cars=carList)
 

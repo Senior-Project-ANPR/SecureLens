@@ -44,14 +44,16 @@
     let sortDirection = false;
     //Import our database as an array of each cell with all special characters removed
     let studentsTemp = [{{ students | tojson | safe }}];
+    let carsTemp = [{{ cars | tojson | safe }}]
     //Initialize other various vars we'll need
     let student_tableData = [];
+    let car_tableData = [];
     let tempInt = 0;
 
     //Concatenate our array of cells into one string, then split the string at the commas
     //This polishes the data so we can easily work with it
     studentsTemp = studentsTemp.toString();
-    student_tableArray = studentsTemp.split(',');
+    student_normalArray = studentsTemp.split(',');
 
     //This for loop populates our student_tableData table-array with the data from our array of cells
     //I deemed it a table-array because each element acts as a row, holding 5 other elements that count as the
@@ -60,17 +62,32 @@
     //in our table-array. Then, we increment our for loop by 5, landing us at the next student id in the normal array,
     //as well as increment tempInt by 1, which acts as a counter for which row we're on in the table-array.
     //Once finished, this leaves us with an array formatted for easy use with a table.
-    for (let i = 0; i < student_tableArray.length; i = i + 5)
+    for (let i = 0; i < student_normalArray.length; i = i + 5)
     {
-        student_tableData[tempInt] = { id: student_tableArray[i], firstName: student_tableArray[i+1], lastName: student_tableArray[i+2], classNumber: student_tableArray[i+3], checkedOut: student_tableArray[i+4] }
+        student_tableData[tempInt] = { id: student_normalArray[i], firstName: student_normalArray[i+1], lastName: student_normalArray[i+2], classNumber: student_normalArray[i+3], checkedOut: student_normalArray[i+4] }
+        tempInt++;
+    }
+    
+    //Do the same thing for the car table
+    carsTemp = carsTemp.toString();
+    car_normalArray = carsTemp.split(',');
+    tempInt = 0;
+
+    console.log(car_normalArray);
+
+    for (let j = 0; j < car_normalArray.length; j = j + 6)
+    {
+        car_tableData[tempInt] = { carPlate: car_normalArray[j], carMake: car_normalArray[j+1], carModel: car_normalArray[j+2], carColor: car_normalArray[j+3], id: car_normalArray[j+4], guest: car_normalArray[j+5]}
+        console.log("here!");
         tempInt++;
     }
 
     window.onload = () => {
         loadTableData(student_tableData);
+        loadCarTableData(car_tableData)
     }
 
-    //Function to load our table's data dynamically
+    //Function to load our student table's data dynamically
     function loadTableData(student_tableData)
     {
         //Set a constant variable to refer to studentTable defined in our HTML
@@ -86,6 +103,30 @@
                         <td>${student.lastName}</td>
                         <td>${student.classNumber}</td>
                         <td>${student.checkedOut}</td>`;
+        }
+
+        //Set our table's body to all the data housed within dataHtml
+        tableBody.innerHTML = dataHtml;
+    }
+
+    //Function to load our car table's data dynamically
+    function loadCarTableData(student_tableData)
+    {
+        //Set a constant variable to refer to carTable defined in our HTML
+        const tableBody = document.getElementById('carTable');
+        //Set up our input data variable as an empty string
+        let dataHtml = '';
+
+        console.log(car_tableData);
+
+        //Iterate through our table of car data and append each row to dataHtml
+        for(let car of car_tableData)
+        {
+            dataHtml += `<tr onclick="testFunc()"><td>${car.carPlate}</td>
+                        <td>${car.carMake}</td>
+                        <td>${car.carModel}</td>
+                        <td>${car.carColor}</td>
+                        <td>${car.guest}</td>`;
         }
 
         //Set our table's body to all the data housed within dataHtml
@@ -152,7 +193,6 @@
                 <th onclick="sortColumn('carMake')">Make</th>
                 <th onclick="sortColumn('carModel')">Model</th>
                 <th onclick="sortColumn('carColor')">Color</th>
-                <th onclick="sortColumn('id')">Student ID</th>
                 <th onclick="sortColumn('guest')">Guest?</th>
             </tr>
             </thead>

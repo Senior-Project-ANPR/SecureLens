@@ -1,5 +1,8 @@
+import dataclasses
+from dataclasses import dataclass
+
 import flask_login
-from flask import Flask, render_template, Response, request, redirect, url_for
+from flask import Flask, render_template, Response, request, redirect, url_for, json, jsonify
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user
@@ -31,7 +34,6 @@ class student_tbl(db.Model):
     id = db.Column(db.Integer, unique=True, nullable=False, primary_key=True, default=0)
     firstName = db.Column(db.String, nullable=False, default="firstName")
     lastName = db.Column(db.String, nullable=False, default="lastName")
-    guest = db.Column(db.Boolean, nullable=False, default=False)
     checkedOut = db.Column(db.Boolean, nullable=False, default=False)
     classNumber = db.Column(db.Integer, db.ForeignKey("class_tbl.classNumber"), nullable=False)
     car = db.relationship("car_tbl", backref="student_tbl")
@@ -45,6 +47,7 @@ class car_tbl(db.Model):
     carMake = db.Column(db.String)
     carModel = db.Column(db.String)
     carColor = db.Column(db.String)
+    guest = db.Column(db.Boolean, nullable=False, default=False)
     id = db.Column(db.Integer, db.ForeignKey("student_tbl.id"), nullable=False, primary_key=True)
 
 #Third is class_tbl, which holds each classroom's info.
@@ -287,6 +290,30 @@ def checkout(student_id):
     temp = student_tbl.query.filter_by(id=student_id).first()
     classroom = temp.classNumber
     return redirect(url_for('release_students', classroom=classroom))
+
+@app.route('/admin_view/database')
+def table_view():
+    #Grab all elements from our student_tbl & car_tbl and save them as arrays, where each cell is an element
+    allStudents = student_tbl.query.all()
+    allCars = car_tbl.query.all()
+    studentList = []
+    carList = []
+
+    for student in allStudents:
+        studentList.append(student.id)
+        studentList.append(student.firstName)
+        studentList.append(student.lastName)
+        studentList.append(student.classNumber)
+        studentList.append(student.checkedOut)
+
+    for car in allCars:
+        carList.append(car.carPlate)
+        carList.append(car.carMake)
+        carList.append(car.carModel)
+        carList.append(car.carColor)
+        carList.append(car.id)
+
+    return render_template('table_view.html', students=studentList, cars=carList)
 
 if __name__ == '__main__':
     app.run(debug=True)

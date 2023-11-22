@@ -42,14 +42,29 @@
 <script>
     //Set up our boolean for Ascending/Descending sort
     let sortDirection = false;
-    let student_tableData = [
-        { id: 12345, firstName: 'Daniel', lastName: 'Seitz', checkedOut: false},
-        { id: 12346, firstName: 'Takumi', lastName: 'Fujiwara', checkedOut: false },
-        { id: 38356, firstName: 'Ruqo', lastName: 'Venasse', checkedOut: false },
-        { id: 29597, firstName: 'Chet', lastName: 'Ubetcha', checkedOut: false },
-        { id: 98442, firstName: 'Darius', lastName: 'Carbon', checkedOut: true },
-        { id: 68733, firstName: 'Geroge', lastName: 'Weisenheimer', checkedOut: false },
-    ];
+    //Import our database as an array of each cell with all special characters removed
+    let studentsTemp = [{{ students | tojson | safe }}];
+    //Initialize other various vars we'll need
+    let student_tableData = [];
+    let tempInt = 0;
+
+    //Concatenate our array of cells into one string, then split the string at the commas
+    //This polishes the data so we can easily work with it
+    studentsTemp = studentsTemp.toString();
+    student_tableArray = studentsTemp.split(',');
+
+    //This for loop populates our student_tableData table-array with the data from our array of cells
+    //I deemed it a table-array because each element acts as a row, holding 5 other elements that count as the
+    //columns for that row.
+    //In order to populate it, we take the first 5 elements of our normal array and store them as individual elements
+    //in our table-array. Then, we increment our for loop by 5, landing us at the next student id in the normal array,
+    //as well as increment tempInt by 1, which acts as a counter for which row we're on in the table-array.
+    //Once finished, this leaves us with an array formatted for easy use with a table.
+    for (let i = 0; i < student_tableArray.length; i = i + 5)
+    {
+        student_tableData[tempInt] = { id: student_tableArray[i], firstName: student_tableArray[i+1], lastName: student_tableArray[i+2], classNumber: student_tableArray[i+3], checkedOut: student_tableArray[i+4] }
+        tempInt++;
+    }
 
     window.onload = () => {
         loadTableData(student_tableData);
@@ -69,9 +84,9 @@
             dataHtml += `<tr onclick="testFunc()"><td>${student.id}</td>
                         <td>${student.firstName}</td>
                         <td>${student.lastName}</td>
+                        <td>${student.classNumber}</td>
                         <td>${student.checkedOut}</td>`;
         }
-        console.log(dataHtml)
 
         //Set our table's body to all the data housed within dataHtml
         tableBody.innerHTML = dataHtml;
@@ -86,33 +101,11 @@
         //Negate our sortDirection so it sorts the other way around
         sortDirection = !sortDirection;
 
-        /*switch(dataType)
-        {
-            case 'number':
-                sortStringColumn(sortDirection, columnName);
-                break;
-            case 'string':
-                sortStringColumn(sortDirection, columnName);
-                break;
-            case 'boolean':
-                sortStringColumn(sortDirection, columnName);
-                break;
-        }*/
-
         returnSortedColumn(sortDirection, columnName);
 
         //Reload our table data
         loadTableData(student_tableData);
     }
-
-    /*function sortNumberColumn(sortDirection, columnName)
-    {
-        student_tableData = student_tableData.sort((s1, s2) =>
-        {
-            return sortDirection ? s1[columnName] - s2[columnName] :
-                s2[columnName] - s1[columnName]
-        });
-    }*/
 
     function returnSortedColumn(sortDirection, columnName)
     {
@@ -126,19 +119,11 @@
         });
     }
 
-    /*function sortBooleanColumn(sortDirection, columnName)
-    {
-        student_tableData = student_tableData.sort((s1, s2) =>
-        {
-            return sortDirection ? -(s1[columnName] > s2[columnName]) :
-                -(s1[columnName] < s2[columnName])
-        });
-    }*/
-
     function testFunc()
     {
         console.log("here!");
     }
+
 </script>
 
 <head>
@@ -154,6 +139,7 @@
                 <th onclick="sortColumn('id')">Student ID</th>
                 <th onclick="sortColumn('firstName')">First Name</th>
                 <th onclick="sortColumn('lastName')">Last Name</th>
+                <th onclick="sortColumn('classNumber')">Classroom</th>
                 <th onclick="sortColumn('checkedOut')">Checked Out?</th>
             </tr>
             </thead>

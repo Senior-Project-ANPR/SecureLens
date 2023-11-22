@@ -2,47 +2,142 @@
 <html lang="en">
 
 <style>
-    table{
+
+    table {
         font-family: Bahnschrift, sans-serif;
+        font-size: 13px;
         border-collapse: collapse;
+        margin: 5px;
     }
+
     td, th {
         border: 1px solid #a8a8a8;
+        padding: 5px;
+    }
+
+    th {
+        background-color: #ffffff;
+        font-size: 14px;
+        padding: 7px;
+    }
+
+    tr:nth-child(odd) {
+        background-color: #ececec
+    }
+
+    tr:hover {
+        background-color: #c9c9c9;
+    }
+
+    tr:active, th:active {
+        background-color: #646464;
+    }
+
+    .buttonSection {
         padding: 10px;
     }
 
 </style>
 
 <script>
+    //Set up our boolean for Ascending/Descending sort
     let sortDirection = false;
     let student_tableData = [
-        { sid: 12345, firstName: 'Daniel', lastName: 'Seitz', checkedOut: false, guest: false },
-        { sid: 12346, firstName: 'Takumi', lastName: 'Fujiwara', checkedOut: false, guest: false },
-        { sid: 38356, firstName: 'Ruqo', lastName: 'Venasse', checkedOut: false, guest: false },
-        { sid: 29597, firstName: 'Chet', lastName: 'Ubetcha', checkedOut: false, guest: true },
-        { sid: 98442, firstName: 'Darius', lastName: 'Carbon', checkedOut: true, guest: true },
+        { id: 12345, firstName: 'Daniel', lastName: 'Seitz', checkedOut: false},
+        { id: 12346, firstName: 'Takumi', lastName: 'Fujiwara', checkedOut: false },
+        { id: 38356, firstName: 'Ruqo', lastName: 'Venasse', checkedOut: false },
+        { id: 29597, firstName: 'Chet', lastName: 'Ubetcha', checkedOut: false },
+        { id: 98442, firstName: 'Darius', lastName: 'Carbon', checkedOut: true },
+        { id: 68733, firstName: 'Geroge', lastName: 'Weisenheimer', checkedOut: false },
     ];
 
     window.onload = () => {
         loadTableData(student_tableData);
     }
 
+    //Function to load our table's data dynamically
     function loadTableData(student_tableData)
     {
-        const tableBody = document.getElementById('tableData');
+        //Set a constant variable to refer to studentTable defined in our HTML
+        const tableBody = document.getElementById('studentTable');
+        //Set up our input data variable as an empty string
         let dataHtml = '';
 
+        //Iterate through our table of student data and append each row to dataHtml
         for(let student of student_tableData)
         {
-            dataHtml += `<tr><td>${student.sid}</td>
+            dataHtml += `<tr onclick="testFunc()"><td>${student.id}</td>
                         <td>${student.firstName}</td>
                         <td>${student.lastName}</td>
-                        <td>${student.checkedOut}</td>
-                        <td>${student.guest}</td></tr>`;
+                        <td>${student.checkedOut}</td>`;
         }
         console.log(dataHtml)
 
+        //Set our table's body to all the data housed within dataHtml
         tableBody.innerHTML = dataHtml;
+    }
+
+    function sortColumn(columnName)
+    {
+        //Set a constant variable that grabs the first element in the columnName
+        //column and returns its data type
+        const dataType = typeof student_tableData[0][columnName];
+
+        //Negate our sortDirection so it sorts the other way around
+        sortDirection = !sortDirection;
+
+        /*switch(dataType)
+        {
+            case 'number':
+                sortStringColumn(sortDirection, columnName);
+                break;
+            case 'string':
+                sortStringColumn(sortDirection, columnName);
+                break;
+            case 'boolean':
+                sortStringColumn(sortDirection, columnName);
+                break;
+        }*/
+
+        returnSortedColumn(sortDirection, columnName);
+
+        //Reload our table data
+        loadTableData(student_tableData);
+    }
+
+    /*function sortNumberColumn(sortDirection, columnName)
+    {
+        student_tableData = student_tableData.sort((s1, s2) =>
+        {
+            return sortDirection ? s1[columnName] - s2[columnName] :
+                s2[columnName] - s1[columnName]
+        });
+    }*/
+
+    function returnSortedColumn(sortDirection, columnName)
+    {
+        //Sort all the column's elements based on the boolean:
+        //If true, Ascending. If false, Descending.
+        //Ngl no idea why this works but it does so ¯\_(ツ)_/¯
+        student_tableData = student_tableData.sort((s1, s2) =>
+        {
+            return sortDirection ? -(s1[columnName] < s2[columnName]) :
+                -(s1[columnName] > s2[columnName])
+        });
+    }
+
+    /*function sortBooleanColumn(sortDirection, columnName)
+    {
+        student_tableData = student_tableData.sort((s1, s2) =>
+        {
+            return sortDirection ? -(s1[columnName] > s2[columnName]) :
+                -(s1[columnName] < s2[columnName])
+        });
+    }*/
+
+    function testFunc()
+    {
+        console.log("here!");
     }
 </script>
 
@@ -52,20 +147,37 @@
 </head>
 
 <body>
-    <table>
-        <thead>
-        <tr>
-            <th>Student ID</th>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>Checked Out?</th>
-            <th>Guest?</th>
-        </tr>
-        </thead>
-
-        <tbody id="tableData"></tbody>
-
-    </table>
+    <div class="tableSection">
+        <table style="float: left;">
+            <thead>
+            <tr>
+                <th onclick="sortColumn('id')">Student ID</th>
+                <th onclick="sortColumn('firstName')">First Name</th>
+                <th onclick="sortColumn('lastName')">Last Name</th>
+                <th onclick="sortColumn('checkedOut')">Checked Out?</th>
+            </tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+        </table>
+        <table style="float: left">
+            <thead>
+            <tr>
+                <th onclick="sortColumn('carPlate')">License Plate</th>
+                <th onclick="sortColumn('carMake')">Make</th>
+                <th onclick="sortColumn('carModel')">Model</th>
+                <th onclick="sortColumn('carColor')">Color</th>
+                <th onclick="sortColumn('id')">Student ID</th>
+                <th onclick="sortColumn('guest')">Guest?</th>
+            </tr>
+            </thead>
+            <tbody id="carTable"></tbody>
+        </table>
+    </div>
+    <div class="buttonSection" style="clear: both">
+        <button type="button">Add Student</button>
+        <button type="button">Edit Student</button>
+        <button type="button">Remove Student</button>
+    </div>
 </body>
 
 </html>

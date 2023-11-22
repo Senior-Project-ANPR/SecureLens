@@ -22,19 +22,33 @@
     }
 
     tr:nth-child(odd) {
-        background-color: #ececec
+        background-color: #ececec;
     }
 
     tr:hover {
-        background-color: #c9c9c9;
+        background-color: #b7b7b7;
     }
 
-    tr:active, th:active {
+    tr:active td, th:active {
         background-color: #646464;
     }
 
+    .inputSection {
+        font-family: Bahnschrift, sans-serif;
+        padding: 7px;
+    }
+
+    .inputField {
+        padding: 3px;
+    }
+
     .buttonSection {
+        font-family: Bahnschrift, sans-serif;
         padding: 10px;
+    }
+
+    .selected {
+        border: 2px solid #a8a8a8;
     }
 
 </style>
@@ -49,11 +63,15 @@
     let student_tableData = [];
     let car_tableData = [];
     let tempInt = 0;
+    let activeRow;
 
     //Concatenate our array of cells into one string, then split the string at the commas
     //This polishes the data so we can easily work with it
+    console.log(studentsTemp);
     studentsTemp = studentsTemp.toString();
+    console.log(studentsTemp);
     student_normalArray = studentsTemp.split(',');
+    console.log(student_normalArray);
 
     //This for loop populates our student_tableData table-array with the data from our array of cells
     //I deemed it a table-array because each element acts as a row, holding 5 other elements that count as the
@@ -67,6 +85,8 @@
         student_tableData[tempInt] = { id: student_normalArray[i], firstName: student_normalArray[i+1], lastName: student_normalArray[i+2], classNumber: student_normalArray[i+3], checkedOut: student_normalArray[i+4] }
         tempInt++;
     }
+
+    console.log(student_tableData);
     
     //Do the same thing for the car table
     carsTemp = carsTemp.toString();
@@ -83,12 +103,12 @@
     }
 
     window.onload = () => {
-        loadTableData(student_tableData);
-        loadCarTableData(car_tableData)
+        loadStudentTableData(student_tableData);
+        coloredRow = student_tableData[0];
     }
 
     //Function to load our student table's data dynamically
-    function loadTableData(student_tableData)
+    function loadStudentTableData(student_tableData)
     {
         //Set a constant variable to refer to studentTable defined in our HTML
         const tableBody = document.getElementById('studentTable');
@@ -98,7 +118,8 @@
         //Iterate through our table of student data and append each row to dataHtml
         for(let student of student_tableData)
         {
-            dataHtml += `<tr onclick="testFunc()"><td>${student.id}</td>
+            dataHtml += `<tr onclick="selectStudent(${student.id}); drawSelectBorder(this);">
+                        <td>${student.id}</td>
                         <td>${student.firstName}</td>
                         <td>${student.lastName}</td>
                         <td>${student.classNumber}</td>
@@ -110,7 +131,7 @@
     }
 
     //Function to load our car table's data dynamically
-    function loadCarTableData(student_tableData)
+    function loadCarTableData(car_tableData)
     {
         //Set a constant variable to refer to carTable defined in our HTML
         const tableBody = document.getElementById('carTable');
@@ -122,7 +143,7 @@
         //Iterate through our table of car data and append each row to dataHtml
         for(let car of car_tableData)
         {
-            dataHtml += `<tr onclick="testFunc()"><td>${car.carPlate}</td>
+            dataHtml += `<tr onclick="selectStudent(${car.id});" ><td>${car.carPlate}</td>
                         <td>${car.carMake}</td>
                         <td>${car.carModel}</td>
                         <td>${car.carColor}</td>
@@ -145,7 +166,9 @@
         returnSortedColumn(sortDirection, columnName);
 
         //Reload our table data
-        loadTableData(student_tableData);
+        loadStudentTableData(student_tableData);
+
+        drawSelectBorder(activeRow);
     }
 
     function returnSortedColumn(sortDirection, columnName)
@@ -160,9 +183,50 @@
         });
     }
 
-    function testFunc()
+
+    function selectStudent(sid)
     {
-        console.log("here!");
+        //Initialize an array to hold our filtered table-array
+        let filteredCarsTable = []
+
+        //Iterate through our car database and find any entry that has a matching id to the student
+        //we selected. Append that entry to the filtered table-array
+        for (let i = 0; i < car_tableData.length; i++)
+        {
+            if (car_tableData[i].id == sid)
+            {
+                filteredCarsTable.push(car_tableData[i]);
+            }
+        }
+
+        //Reload our car table
+        loadCarTableData(filteredCarsTable);
+    }
+
+    /*function changeColor(row)
+    {
+        console.log(row.rowIndex);
+        if (coloredRow != null)
+        {
+            coloredRow.style.backgroundColor = coloredRowPrevColor;
+        }
+        coloredRow = row;
+        coloredRowPrevColor = row.style.backgroundColor;
+        row.style.backgroundColor ='#bdbdbd';
+    }*/
+
+    function drawSelectBorder(row)
+    {
+        console.log(row);
+        activeRow = row;
+        let s = row.parentNode.querySelector('tr.selected');
+        s && s.classList.remove('selected');
+        row.classList.add('selected');
+    }
+
+    addStudent()
+    {
+
     }
 
 </script>
@@ -200,9 +264,32 @@
         </table>
     </div>
     <div class="buttonSection" style="clear: both">
-        <button type="button">Add Student</button>
-        <button type="button">Edit Student</button>
-        <button type="button">Remove Student</button>
+        <button type="button" onclick="addStudent()">Add Student</button>
+        <button type="button" onclick="editStudent()">Edit Student</button>
+        <button type="button" onclick="removeStudent()">Remove Student</button>
+    </div>
+    <div class="inputSection" style="clear: both">
+        <form action="#" method="post">
+            <div class="inputField">
+                <button type="submit" class="btn">Add Student</button><br>
+            </div>
+            <div class="inputField">
+                <label for="id">Student ID:</label><br>
+                <input type="text" name="id" required><br>
+            </div>
+            <div class="inputField">
+                <label for="firstName">First Name:</label><br>
+                <input type="text" name="firstName" required><br>
+            </div>
+            <div class="inputField">
+                <label for="lastName">Last Name:</label><br>
+                <input type="text" name="lastName" required><br>
+            </div>
+            <div class="inputField">
+                <label for="classNumber">Classroom:</label><br>
+                <input type="text" name="classNumber" required><br>
+            </div>
+        </form>
     </div>
 </body>
 

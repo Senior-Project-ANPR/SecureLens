@@ -291,7 +291,7 @@ def checkout(student_id):
     classroom = temp.classNumber
     return redirect(url_for('release_students', classroom=classroom))
 
-@app.route('/admin_view/database')
+@app.route('/admin_view/database', methods=["GET", "POST"])
 def table_view():
     #Grab all elements from our student_tbl & car_tbl and save them as arrays, where each cell is an element
     allStudents = student_tbl.query.all()
@@ -313,6 +313,30 @@ def table_view():
         carList.append(car.carColor)
         carList.append(car.id)
         carList.append(car.guest)
+
+    if request.method == "POST":
+        idIn = request.form.get("id")
+        firstNameIn = request.form.get("firstName")
+        lastNameIn = request.form.get("lastName")
+        classNumberIn = request.form.get("classNumber")
+
+        print(f"{idIn}")
+        print(f"{firstNameIn}")
+        print(f"{lastNameIn}")
+        print(f"{classNumberIn}")
+
+        inUser = student_tbl(
+            id = idIn,
+            firstName = firstNameIn,
+            lastName = lastNameIn,
+            classNumber = classNumberIn,
+            checkedOut = 0,
+        )
+
+        db.session.add(inUser)
+        db.session.commit()
+
+        return redirect(url_for('table_view'))
 
     return render_template('table_view.html', students=studentList, cars=carList)
 

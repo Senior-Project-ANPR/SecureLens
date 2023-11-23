@@ -48,7 +48,7 @@
     }
 
     .selected {
-        border: 2px solid #a8a8a8;
+        border: 3px solid #626262;
     }
 
 </style>
@@ -63,15 +63,12 @@
     let student_tableData = [];
     let car_tableData = [];
     let tempInt = 0;
-    let activeRow;
+    let selectedRowIndex = -1;
 
     //Concatenate our array of cells into one string, then split the string at the commas
     //This polishes the data so we can easily work with it
-    console.log(studentsTemp);
     studentsTemp = studentsTemp.toString();
-    console.log(studentsTemp);
     student_normalArray = studentsTemp.split(',');
-    console.log(student_normalArray);
 
     //This for loop populates our student_tableData table-array with the data from our array of cells
     //I deemed it a table-array because each element acts as a row, holding 5 other elements that count as the
@@ -85,10 +82,9 @@
         student_tableData[tempInt] = { id: student_normalArray[i], firstName: student_normalArray[i+1], lastName: student_normalArray[i+2], classNumber: student_normalArray[i+3], checkedOut: student_normalArray[i+4] }
         tempInt++;
     }
-
-    console.log(student_tableData);
     
     //Do the same thing for the car table
+    //-----------------------------------
     carsTemp = carsTemp.toString();
     car_normalArray = carsTemp.split(',');
     tempInt = 0;
@@ -98,13 +94,13 @@
     for (let j = 0; j < car_normalArray.length; j = j + 6)
     {
         car_tableData[tempInt] = { carPlate: car_normalArray[j], carMake: car_normalArray[j+1], carModel: car_normalArray[j+2], carColor: car_normalArray[j+3], id: car_normalArray[j+4], guest: car_normalArray[j+5]}
-        console.log("here!");
         tempInt++;
     }
+    //-----------------------------------
 
-    window.onload = () => {
+    window.onload = () =>
+    {
         loadStudentTableData(student_tableData);
-        coloredRow = student_tableData[0];
     }
 
     //Function to load our student table's data dynamically
@@ -118,7 +114,9 @@
         //Iterate through our table of student data and append each row to dataHtml
         for(let student of student_tableData)
         {
-            dataHtml += `<tr onclick="selectStudent(${student.id}); drawSelectBorder(this);">
+            dataHtml += `<tr onclick="selectStudent(${student.id});
+                            drawSelectBorder(this);
+                            selectedRowIndex = this.rowIndex - 1;">
                         <td>${student.id}</td>
                         <td>${student.firstName}</td>
                         <td>${student.lastName}</td>
@@ -168,7 +166,7 @@
         //Reload our table data
         loadStudentTableData(student_tableData);
 
-        drawSelectBorder(activeRow);
+        selectedRowIndex = -1;
     }
 
     function returnSortedColumn(sortDirection, columnName)
@@ -181,6 +179,7 @@
             return sortDirection ? -(s1[columnName] < s2[columnName]) :
                 -(s1[columnName] > s2[columnName])
         });
+
     }
 
 
@@ -203,30 +202,46 @@
         loadCarTableData(filteredCarsTable);
     }
 
-    /*function changeColor(row)
-    {
-        console.log(row.rowIndex);
-        if (coloredRow != null)
-        {
-            coloredRow.style.backgroundColor = coloredRowPrevColor;
-        }
-        coloredRow = row;
-        coloredRowPrevColor = row.style.backgroundColor;
-        row.style.backgroundColor ='#bdbdbd';
-    }*/
-
+    //Draw a thick border around the currently selected row
     function drawSelectBorder(row)
     {
-        console.log(row);
-        activeRow = row;
-        let s = row.parentNode.querySelector('tr.selected');
-        s && s.classList.remove('selected');
+        //Create a variable that holds all current selected rows (should be only one)
+        let prevSelect = row.parentNode.querySelector('tr.selected');
+        //Remove the selected tag from the current selected rows and add the selected tag to the new selection
+        prevSelect && prevSelect.classList.remove('selected');
         row.classList.add('selected');
     }
 
-    addStudent()
+    //Hide an element so it doesn't show on the page
+    function hideDiv(element)
     {
+        let temp = document.getElementById(element);
+        temp.style.display = "none";
+    }
 
+    //Unhide an element so it displays on the page, while hiding all other hidden elements
+    function unhideDiv(element)
+    {
+        console.log(element);
+        let temp = document.getElementById(element);
+        temp.style.display = "block";
+
+        //If the element we're unhiding is editInput, populate the text fields with the currently
+        //selected student's info
+        if(element == 'editInput')
+        {
+            hideDiv('addInput');
+            document.getElementById('editInputId').value = student_tableData[selectedRowIndex].id;
+            document.getElementById('editInputFirstName').value = student_tableData[selectedRowIndex].firstName;
+            document.getElementById('editInputLastName').value = student_tableData[selectedRowIndex].lastName;
+            document.getElementById('editInputClassNumber').value = student_tableData[selectedRowIndex].classNumber;
+            document.getElementById('editInputCheckedOut').value = student_tableData[selectedRowIndex].checkedOut;
+        }
+
+        if(element == 'addInput')
+        {
+            hideDiv('editInput');
+        }
     }
 
 </script>
@@ -264,15 +279,12 @@
         </table>
     </div>
     <div class="buttonSection" style="clear: both">
-        <button type="button" onclick="addStudent()">Add Student</button>
-        <button type="button" onclick="editStudent()">Edit Student</button>
+        <button type="button" onclick="unhideDiv('addInput')">Add Student</button>
+        <button type="button" onclick="unhideDiv('editInput')">Edit Student</button>
         <button type="button" onclick="removeStudent()">Remove Student</button>
     </div>
-    <div class="inputSection" style="clear: both">
+    <div class="inputSection" id="addInput" style="clear: both; display: none">
         <form action="#" method="post">
-            <div class="inputField">
-                <button type="submit" class="btn">Add Student</button><br>
-            </div>
             <div class="inputField">
                 <label for="id">Student ID:</label><br>
                 <input type="text" name="id" required><br>
@@ -288,6 +300,38 @@
             <div class="inputField">
                 <label for="classNumber">Classroom:</label><br>
                 <input type="text" name="classNumber" required><br>
+            </div>
+            <div class="inputField">
+                <button type="submit" class="btn">Submit</button>
+                <button type="reset" onclick="hideDiv('addInput')">Cancel</button>
+            </div>
+        </form>
+    </div>
+    <div class="inputSection" id="editInput" style="clear: both; display: none">
+        <form action="#" method="post">
+            <div class="inputField">
+                <label for="id">Student ID:</label><br>
+                <input id="editInputId" type="text" name="id" value="test" required><br>
+            </div>
+            <div class="inputField">
+                <label for="firstName">First Name:</label><br>
+                <input id="editInputFirstName" type="text" name="firstName" placeholder= required><br>
+            </div>
+            <div class="inputField">
+                <label for="lastName">Last Name:</label><br>
+                <input id="editInputLastName" type="text" name="lastName" required><br>
+            </div>
+            <div class="inputField">
+                <label for="classNumber">Classroom:</label><br>
+                <input id="editInputClassNumber" type="text" name="classNumber" required><br>
+            </div>
+            <div class="inputField">
+                <label for="classNumber">Checked Out?</label><br>
+                <input id="editInputCheckedOut" type="checkbox" name="checkedOut" required><br>
+            </div>
+            <div class="inputField">
+                <button type="submit" class="btn">Submit</button>
+                <button type="reset" onclick="hideDiv('editInput')">Cancel</button>
             </div>
         </form>
     </div>

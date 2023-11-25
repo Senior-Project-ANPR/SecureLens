@@ -244,6 +244,13 @@
         //selected student's info and hide addInput
         if(element == 'editInput')
         {
+            //However, if no student is selected, throw an alert
+            if (!studentSelectedRow)
+            {
+                hideDiv('editInput');
+                alert("Please select a student first");
+                return;
+            }
             hideDiv('addInput');
             document.getElementById('editInputId').value = student_tableData[selectedRowIndex].id;
             document.getElementById('editOgId').value = student_tableData[selectedRowIndex].id;
@@ -262,12 +269,24 @@
 
     function removeStudent()
     {
+        let confirmTrigger = false;
         //If there is a currently selected student
         if (studentSelectedRow)
         {
+            confirmTrigger = true;
+            let tempFirstName = student_tableData[selectedRowIndex].firstName;
+            let tempLastName = student_tableData[selectedRowIndex].lastName;
+            let tempId = student_tableData[selectedRowIndex].id;
+
             //Set our hidden form's value to the student's id
-            document.getElementById('removeButtonId').value = student_tableData[selectedRowIndex].id;
+            document.getElementById('removeButtonId').value = tempId;
         }
+        else
+        {
+            alert("You must select a student first.")
+        }
+
+        return confirmTrigger;
     }
 
 </script>
@@ -308,7 +327,7 @@
         <button type="button" onclick="unhideDiv('addInput')">Add Student</button>
         <button type="button" onclick="unhideDiv('editInput')">Edit Student</button>
         <form action="database/remove" method="post" style="display: inline-block">
-                <input type="submit" name="removeButton" value="Remove Student" onclick="removeStudent(); return confirm('Are you sure you wish to remove this student?')">
+                <input type="submit" name="removeButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}">
                 <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
         </form>
     </div>
@@ -316,7 +335,7 @@
         <form action="database/add" method="post">
             <div class="inputField">
                 <label for="id">Student ID:</label><br>
-                <input type="text" name="id" required><br>
+                <input type="number" name="id" required><br>
             </div>
             <div class="inputField">
                 <label for="firstName">First Name:</label><br>
@@ -328,7 +347,7 @@
             </div>
             <div class="inputField">
                 <label for="classNumber">Classroom:</label><br>
-                <input type="text" name="classNumber" required><br>
+                <input type="number" name="classNumber" required><br>
             </div>
             <div class="inputField">
                 <button type="submit" class="btn">Submit</button>
@@ -340,12 +359,12 @@
         <form action="database/edit" method="post">
             <div class="inputField">
                 <label for="id">Student ID:</label><br>
-                <input id="editInputId" type="text" name="id" value="test" required><br>
-                <input id="editOgId" type="hidden" name="ogId" value="test" required><br>
+                <input id="editInputId" type="number" name="id" value="test" required>
+                <input id="editOgId" type="hidden" name="ogId" value="test" style="display: inline-block" required><br>
             </div>
             <div class="inputField">
                 <label for="firstName">First Name:</label><br>
-                <input id="editInputFirstName" type="text" name="firstName" placeholder= required><br>
+                <input id="editInputFirstName" type="text" name="firstName" required><br>
             </div>
             <div class="inputField">
                 <label for="lastName">Last Name:</label><br>
@@ -353,7 +372,7 @@
             </div>
             <div class="inputField">
                 <label for="classNumber">Classroom:</label><br>
-                <input id="editInputClassNumber" type="text" name="classNumber" required><br>
+                <input id="editInputClassNumber" type="number" name="classNumber" required><br>
             </div>
             <div class="inputField">
                 <label for="checkedOut">Checked Out?</label><br>

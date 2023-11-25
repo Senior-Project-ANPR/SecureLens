@@ -212,6 +212,7 @@
         row.classList.add('selected');
     }
 
+    //This function is still under construction and is current not called
     function redrawSelectBorder(row)
     {
         for (let i = 0; i < student_tableData.length; i++)
@@ -240,7 +241,7 @@
         temp.style.display = "block";
 
         //If the element we're unhiding is editInput, populate the text fields with the currently
-        //selected student's info
+        //selected student's info and hide addInput
         if(element == 'editInput')
         {
             hideDiv('addInput');
@@ -252,9 +253,20 @@
             document.getElementById('editInputCheckedOut').value = (student_tableData[selectedRowIndex].checkedOut === 'true');
         }
 
+        //If the element we're unhiding is addInput, hide editInput
         if(element == 'addInput')
         {
             hideDiv('editInput');
+        }
+    }
+
+    function removeStudent()
+    {
+        //If there is a currently selected student
+        if (studentSelectedRow)
+        {
+            //Set our hidden form's value to the student's id
+            document.getElementById('removeButtonId').value = student_tableData[selectedRowIndex].id;
         }
     }
 
@@ -295,7 +307,10 @@
     <div class="buttonSection" style="clear: both">
         <button type="button" onclick="unhideDiv('addInput')">Add Student</button>
         <button type="button" onclick="unhideDiv('editInput')">Edit Student</button>
-        <button type="button" onclick="removeStudent()">Remove Student</button>
+        <form action="database/remove" method="post" style="display: inline-block">
+                <input type="submit" name="removeButton" value="Remove Student" onclick="removeStudent(); return confirm('Are you sure you wish to remove this student?')">
+                <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
+        </form>
     </div>
     <div class="inputSection" id="addInput" style="clear: both; display: none">
         <form action="database/add" method="post">
@@ -348,6 +363,9 @@
                 <button type="submit" class="btn">Submit</button>
                 <button type="reset" onclick="hideDiv('editInput')">Cancel</button>
             </div>
+        </form>
+        <form>
+            <input id="idToRemove" type="hidden">
         </form>
     </div>
 </body>

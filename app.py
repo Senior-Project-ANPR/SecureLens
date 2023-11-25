@@ -378,6 +378,26 @@ def table_view_editStudent():
 
     return redirect(url_for('table_view'))
 
+@app.route('/admin_view/database/remove', methods=["GET", "POST"])
+def table_view_removeStudent():
+
+    #Get the id of the currently selected student
+    idIn = request.form.get("removeButtonId")
+
+    #If the id is null (the default value for when no student is selected), redirect to the error page, otherwise
+    #delete the student from the db, commit the changes, and reload the page
+    if (idIn == "null"):
+        return redirect(url_for('table_view_error'))
+    else:
+        student_tbl.query.filter_by(id=idIn).delete()
+
+    db.session.commit()
+    return redirect(url_for('table_view'))
+
+@app.route('/admin_view/database/error', methods=["GET"])
+def table_view_error():
+
+    return redirect(url_for('table_view'))
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -314,31 +314,70 @@ def table_view():
         carList.append(car.id)
         carList.append(car.guest)
 
-    if request.method == "POST":
-        idIn = request.form.get("id")
-        firstNameIn = request.form.get("firstName")
-        lastNameIn = request.form.get("lastName")
-        classNumberIn = request.form.get("classNumber")
-
-        print(f"{idIn}")
-        print(f"{firstNameIn}")
-        print(f"{lastNameIn}")
-        print(f"{classNumberIn}")
-
-        inUser = student_tbl(
-            id = idIn,
-            firstName = firstNameIn,
-            lastName = lastNameIn,
-            classNumber = classNumberIn,
-            checkedOut = 0,
-        )
-
-        db.session.add(inUser)
-        db.session.commit()
-
-        return redirect(url_for('table_view'))
-
     return render_template('table_view.html', students=studentList, cars=carList)
+
+#Route to add a student to the database after submission of the add form
+@app.route('/admin_view/database/add', methods=["GET", "POST"])
+def table_view_addStudent():
+    #Grab all the entries from the form and store them in local variables
+    idIn = request.form.get("id")
+    firstNameIn = request.form.get("firstName")
+    lastNameIn = request.form.get("lastName")
+    classNumberIn = request.form.get("classNumber")
+
+    #debug
+    print(f"{idIn}")
+    print(f"{firstNameIn}")
+    print(f"{lastNameIn}")
+    print(f"{classNumberIn}")
+    #debug
+
+    #Format the entries received into a row for our student_tbl
+    inUser = student_tbl(
+        id=idIn,
+        firstName=firstNameIn,
+        lastName=lastNameIn,
+        classNumber=classNumberIn,
+        checkedOut=0,
+    )
+
+    #Add the row to the database and commit the change
+    db.session.add(inUser)
+    db.session.commit()
+
+    #redirect back to the database view
+    return redirect(url_for('table_view'))
+
+@app.route('/admin_view/database/edit', methods=["GET", "POST"])
+def table_view_editStudent():
+    #Grab all the entries from the form and store them in local variables, as well as the original
+    #id of the student we're editing
+    idIn = request.form.get("id")
+    ogId = request.form.get("ogId")
+    firstNameIn = request.form.get("firstName")
+    lastNameIn = request.form.get("lastName")
+    classNumberIn = request.form.get("classNumber")
+    checkedOutIn = request.form.get("checkedOut")
+
+    #Find the student we're editing in the database and change its data to the edited info
+    editRow = student_tbl.query.filter_by(id=ogId).first()
+
+    editRow.id = idIn
+    editRow.firstName = firstNameIn
+    editRow.lastName = lastNameIn
+    editRow.classNumber = classNumberIn
+    #Since HTML doesn't return a boolean for checkboxes, we check if the incoming data exists or not.
+    #If it does, that means the checkbox was checked
+    if checkedOutIn:
+        editRow.checkedOut = 1
+    else:
+        editRow.checkedOut = 0
+
+    #Commit our changes and go back to database view
+    db.session.commit()
+
+    return redirect(url_for('table_view'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

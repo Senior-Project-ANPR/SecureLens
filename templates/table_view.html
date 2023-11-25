@@ -63,12 +63,17 @@
     let student_tableData = [];
     let car_tableData = [];
     let tempInt = 0;
-    let selectedRowIndex = -1;
+    let studentSelectedKey;
+    let studentSelectedRow;
+    let selectedRowIndex;
 
     //Concatenate our array of cells into one string, then split the string at the commas
     //This polishes the data so we can easily work with it
+    console.log(studentsTemp);
     studentsTemp = studentsTemp.toString();
+    console.log(studentsTemp);
     student_normalArray = studentsTemp.split(',');
+    console.log(student_normalArray);
 
     //This for loop populates our student_tableData table-array with the data from our array of cells
     //I deemed it a table-array because each element acts as a row, holding 5 other elements that count as the
@@ -104,7 +109,7 @@
     }
 
     //Function to load our student table's data dynamically
-    function loadStudentTableData(student_tableData)
+    function loadStudentTableData(student_tableData, row)
     {
         //Set a constant variable to refer to studentTable defined in our HTML
         const tableBody = document.getElementById('studentTable');
@@ -114,7 +119,7 @@
         //Iterate through our table of student data and append each row to dataHtml
         for(let student of student_tableData)
         {
-            dataHtml += `<tr onclick="selectStudent(${student.id});
+            dataHtml += `<tr onclick="selectStudent(${student.id}, this);
                             drawSelectBorder(this);
                             selectedRowIndex = this.rowIndex - 1;">
                         <td>${student.id}</td>
@@ -136,8 +141,6 @@
         //Set up our input data variable as an empty string
         let dataHtml = '';
 
-        console.log(car_tableData);
-
         //Iterate through our table of car data and append each row to dataHtml
         for(let car of car_tableData)
         {
@@ -154,19 +157,13 @@
 
     function sortColumn(columnName)
     {
-        //Set a constant variable that grabs the first element in the columnName
-        //column and returns its data type
-        const dataType = typeof student_tableData[0][columnName];
-
         //Negate our sortDirection so it sorts the other way around
         sortDirection = !sortDirection;
 
         returnSortedColumn(sortDirection, columnName);
 
         //Reload our table data
-        loadStudentTableData(student_tableData);
-
-        selectedRowIndex = -1;
+        loadStudentTableData(student_tableData, studentSelectedRow);
     }
 
     function returnSortedColumn(sortDirection, columnName)
@@ -183,10 +180,13 @@
     }
 
 
-    function selectStudent(sid)
+    function selectStudent(sid, row)
     {
         //Initialize an array to hold our filtered table-array
         let filteredCarsTable = []
+
+        studentSelectedKey = sid;
+        studentSelectedRow = row;
 
         //Iterate through our car database and find any entry that has a matching id to the student
         //we selected. Append that entry to the filtered table-array
@@ -212,6 +212,19 @@
         row.classList.add('selected');
     }
 
+    function redrawSelectBorder(row)
+    {
+        for (let i = 0; i < student_tableData.length; i++)
+        {
+            if (student_tableData[i].id == studentSelectedKey)
+            {
+                row.classList.remove('selected');
+                drawSelectBorder(row);
+                return;
+            }
+        }
+    }
+
     //Hide an element so it doesn't show on the page
     function hideDiv(element)
     {
@@ -232,10 +245,11 @@
         {
             hideDiv('addInput');
             document.getElementById('editInputId').value = student_tableData[selectedRowIndex].id;
+            document.getElementById('editOgId').value = student_tableData[selectedRowIndex].id;
             document.getElementById('editInputFirstName').value = student_tableData[selectedRowIndex].firstName;
             document.getElementById('editInputLastName').value = student_tableData[selectedRowIndex].lastName;
             document.getElementById('editInputClassNumber').value = student_tableData[selectedRowIndex].classNumber;
-            document.getElementById('editInputCheckedOut').value = student_tableData[selectedRowIndex].checkedOut;
+            document.getElementById('editInputCheckedOut').value = (student_tableData[selectedRowIndex].checkedOut === 'true');
         }
 
         if(element == 'addInput')
@@ -284,7 +298,7 @@
         <button type="button" onclick="removeStudent()">Remove Student</button>
     </div>
     <div class="inputSection" id="addInput" style="clear: both; display: none">
-        <form action="#" method="post">
+        <form action="database/add" method="post">
             <div class="inputField">
                 <label for="id">Student ID:</label><br>
                 <input type="text" name="id" required><br>
@@ -308,10 +322,11 @@
         </form>
     </div>
     <div class="inputSection" id="editInput" style="clear: both; display: none">
-        <form action="#" method="post">
+        <form action="database/edit" method="post">
             <div class="inputField">
                 <label for="id">Student ID:</label><br>
                 <input id="editInputId" type="text" name="id" value="test" required><br>
+                <input id="editOgId" type="hidden" name="ogId" value="test" required><br>
             </div>
             <div class="inputField">
                 <label for="firstName">First Name:</label><br>
@@ -326,8 +341,8 @@
                 <input id="editInputClassNumber" type="text" name="classNumber" required><br>
             </div>
             <div class="inputField">
-                <label for="classNumber">Checked Out?</label><br>
-                <input id="editInputCheckedOut" type="checkbox" name="checkedOut" required><br>
+                <label for="checkedOut">Checked Out?</label><br>
+                <input id="editInputCheckedOut" type="checkbox" name="checkedOut"><br>
             </div>
             <div class="inputField">
                 <button type="submit" class="btn">Submit</button>

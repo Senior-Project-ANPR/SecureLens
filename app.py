@@ -317,7 +317,7 @@ def table_view():
     return render_template('table_view.html', students=studentList, cars=carList)
 
 #Route to add a student to the database after submission of the add form
-@app.route('/admin_view/database/add', methods=["GET", "POST"])
+@app.route('/admin_view/database/add/student', methods=["GET", "POST"])
 def table_view_addStudent():
     #Grab all the entries from the form and store them in local variables
     idIn = request.form.get("id")
@@ -348,7 +348,7 @@ def table_view_addStudent():
     #redirect back to the database view
     return redirect(url_for('table_view'))
 
-@app.route('/admin_view/database/edit', methods=["GET", "POST"])
+@app.route('/admin_view/database/edit/student', methods=["GET", "POST"])
 def table_view_editStudent():
     #Grab all the entries from the form and store them in local variables, as well as the original
     #id of the student we're editing
@@ -378,7 +378,7 @@ def table_view_editStudent():
 
     return redirect(url_for('table_view'))
 
-@app.route('/admin_view/database/remove', methods=["GET", "POST"])
+@app.route('/admin_view/database/remove/student', methods=["GET", "POST"])
 def table_view_removeStudent():
 
     #Get the id of the currently selected student

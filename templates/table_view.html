@@ -66,6 +66,7 @@
     let studentSelectedKey;
     let studentSelectedRow;
     let selectedRowIndex;
+    let filteredCarsTable = []
 
     //Concatenate our array of cells into one string, then split the string at the commas
     //This polishes the data so we can easily work with it
@@ -109,7 +110,7 @@
     }
 
     //Function to load our student table's data dynamically
-    function loadStudentTableData(student_tableData, row)
+    function loadStudentTableData(student_tableData)
     {
         //Set a constant variable to refer to studentTable defined in our HTML
         const tableBody = document.getElementById('studentTable');
@@ -144,7 +145,8 @@
         //Iterate through our table of car data and append each row to dataHtml
         for(let car of car_tableData)
         {
-            dataHtml += `<tr onclick="selectStudent(${car.id});" ><td>${car.carPlate}</td>
+            dataHtml += `<tr onclick="selectCar(${car.id}, ${car.carPlate}, this);" >
+                        <td>${car.carPlate}</td>
                         <td>${car.carMake}</td>
                         <td>${car.carModel}</td>
                         <td>${car.carColor}</td>
@@ -155,35 +157,57 @@
         tableBody.innerHTML = dataHtml;
     }
 
-    function sortColumn(columnName)
+    function sortStudentColumn(columnName)
     {
         //Negate our sortDirection so it sorts the other way around
         sortDirection = !sortDirection;
 
-        returnSortedColumn(sortDirection, columnName);
+        returnSortedColumn(sortDirection, columnName, "student");
 
         //Reload our table data
-        loadStudentTableData(student_tableData, studentSelectedRow);
+        loadStudentTableData(student_tableData);
     }
 
-    function returnSortedColumn(sortDirection, columnName)
+    function sortCarColumn(columnName)
+    {
+        //Negate our sortDirection so it sorts the other way around
+        sortDirection = !sortDirection;
+
+        returnSortedColumn(sortDirection, columnName, "car");
+
+        //Reload our table data
+        loadCarTableData(filteredCarsTable);
+    }
+
+    function returnSortedColumn(sortDirection, columnName, tableData)
     {
         //Sort all the column's elements based on the boolean:
         //If true, Ascending. If false, Descending.
         //Ngl no idea why this works but it does so ¯\_(ツ)_/¯
-        student_tableData = student_tableData.sort((s1, s2) =>
+        switch(tableData)
         {
-            return sortDirection ? -(s1[columnName] < s2[columnName]) :
-                -(s1[columnName] > s2[columnName])
-        });
+            case "student":
+                student_tableData = student_tableData.sort((s1, s2) =>
+                {
+                    return sortDirection ? -(s1[columnName] < s2[columnName]) :
+                        -(s1[columnName] > s2[columnName])
+                });
+                break;
+            case "car":
+                filteredCarsTable = filteredCarsTable.sort((s1, s2) =>
+                {
+                    return sortDirection ? -(s1[columnName] < s2[columnName]) :
+                        -(s1[columnName] > s2[columnName])
+                });
+                break;
+        }
 
     }
 
-
     function selectStudent(sid, row)
     {
-        //Initialize an array to hold our filtered table-array
-        let filteredCarsTable = []
+        //Clear our filteredCarsTable so we only show the correct cars
+        filteredCarsTable = [];
 
         studentSelectedKey = sid;
         studentSelectedRow = row;
@@ -200,6 +224,14 @@
 
         //Reload our car table
         loadCarTableData(filteredCarsTable);
+
+        document.getElementById("removeButton").disabled = false;
+        document.getElementById("editButton").disabled = false;
+    }
+
+    function selectCar(carPlate, sid, row)
+    {
+
     }
 
     //Draw a thick border around the currently selected row
@@ -240,30 +272,30 @@
         let temp = document.getElementById(element);
         temp.style.display = "block";
 
-        //If the element we're unhiding is editInput, populate the text fields with the currently
-        //selected student's info and hide addInput
-        if(element == 'editInput')
+        //If the element we're unhiding is editInputStudent, populate the text fields with the currently
+        //selected student's info and hide addInputStudent
+        if(element == 'editInputStudent')
         {
             //However, if no student is selected, throw an alert
             if (!studentSelectedRow)
             {
-                hideDiv('editInput');
+                hideDiv('editInputStudent');
                 alert("Please select a student first");
                 return;
             }
-            hideDiv('addInput');
-            document.getElementById('editInputId').value = student_tableData[selectedRowIndex].id;
+            hideDiv('addInputStudent');
+            document.getElementById('editInputStudentId').value = student_tableData[selectedRowIndex].id;
             document.getElementById('editOgId').value = student_tableData[selectedRowIndex].id;
-            document.getElementById('editInputFirstName').value = student_tableData[selectedRowIndex].firstName;
-            document.getElementById('editInputLastName').value = student_tableData[selectedRowIndex].lastName;
-            document.getElementById('editInputClassNumber').value = student_tableData[selectedRowIndex].classNumber;
-            document.getElementById('editInputCheckedOut').value = (student_tableData[selectedRowIndex].checkedOut === 'true');
+            document.getElementById('editInputStudentFirstName').value = student_tableData[selectedRowIndex].firstName;
+            document.getElementById('editInputStudentLastName').value = student_tableData[selectedRowIndex].lastName;
+            document.getElementById('editInputStudentClassNumber').value = student_tableData[selectedRowIndex].classNumber;
+            document.getElementById('editInputStudentCheckedOut').value = (student_tableData[selectedRowIndex].checkedOut === 'true');
         }
 
-        //If the element we're unhiding is addInput, hide editInput
-        if(element == 'addInput')
+        //If the element we're unhiding is addInputStudent, hide editInputStudent
+        if(element == 'addInputStudent')
         {
-            hideDiv('editInput');
+            hideDiv('editInputStudent');
         }
     }
 
@@ -298,94 +330,132 @@
 
 <body>
     <div class="tableSection">
-        <table style="float: left;">
-            <thead>
-            <tr>
-                <th onclick="sortColumn('id')">Student ID</th>
-                <th onclick="sortColumn('firstName')">First Name</th>
-                <th onclick="sortColumn('lastName')">Last Name</th>
-                <th onclick="sortColumn('classNumber')">Classroom</th>
-                <th onclick="sortColumn('checkedOut')">Checked Out?</th>
-            </tr>
-            </thead>
-            <tbody id="studentTable"></tbody>
-        </table>
-        <table style="float: left">
-            <thead>
-            <tr>
-                <th onclick="sortColumn('carPlate')">License Plate</th>
-                <th onclick="sortColumn('carMake')">Make</th>
-                <th onclick="sortColumn('carModel')">Model</th>
-                <th onclick="sortColumn('carColor')">Color</th>
-                <th onclick="sortColumn('guest')">Guest?</th>
-            </tr>
-            </thead>
-            <tbody id="carTable"></tbody>
-        </table>
-    </div>
-    <div class="buttonSection" style="clear: both">
-        <button type="button" onclick="unhideDiv('addInput')">Add Student</button>
-        <button type="button" onclick="unhideDiv('editInput')">Edit Student</button>
-        <form action="database/remove" method="post" style="display: inline-block">
-                <input type="submit" name="removeButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}">
-                <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
-        </form>
-    </div>
-    <div class="inputSection" id="addInput" style="clear: both; display: none">
-        <form action="database/add" method="post">
-            <div class="inputField">
-                <label for="id">Student ID:</label><br>
-                <input type="number" name="id" required><br>
+        <div style="float: left">
+            <table style="float: left;">
+                <thead>
+                <tr>
+                    <th onclick="sortStudentColumn('id')">Student ID</th>
+                    <th onclick="sortStudentColumn('firstName')">First Name</th>
+                    <th onclick="sortStudentColumn('lastName')">Last Name</th>
+                    <th onclick="sortStudentColumn('classNumber')">Classroom</th>
+                    <th onclick="sortStudentColumn('checkedOut')">Checked Out?</th>
+                </tr>
+                </thead>
+                <tbody id="studentTable"></tbody>
+            </table>
+            <div>
+                <div class="buttonSection" style="clear: both">
+                    <button type="button" onclick="unhideDiv('addInputStudent')">Add Student</button>
+                    <button id="editButton" type="button" onclick="unhideDiv('editInputStudent')" disabled>Edit Student</button>
+                    <form action="database/remove/student" method="post" style="display: inline-block">
+                            <input id="removeButton" type="submit" name="removeButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}" disabled>
+                            <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
+                    </form>
+                </div>
+                <div class="inputSection" id="addInputStudent" style="clear: both; display: none">
+                    <form action="database/add/student" method="post">
+                        <div class="inputField">
+                            <label for="id">Student ID:</label><br>
+                            <input type="number" name="id" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="firstName">First Name:</label><br>
+                            <input type="text" name="firstName" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="lastName">Last Name:</label><br>
+                            <input type="text" name="lastName" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="classNumber">Classroom:</label><br>
+                            <input type="number" name="classNumber" required><br>
+                        </div>
+                        <div class="inputField">
+                            <button type="submit" class="btn">Submit</button>
+                            <button type="reset" onclick="hideDiv('addInputStudent')">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="inputSection" id="editInputStudent" style="clear: both; display: none">
+                    <form action="database/edit/student" method="post">
+                        <div class="inputField">
+                            <label for="id">Student ID:</label><br>
+                            <input id="editInputStudentId" type="number" name="id" value="test" required>
+                            <input id="editOgId" type="hidden" name="ogId" value="test" style="display: inline-block" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="firstName">First Name:</label><br>
+                            <input id="editInputStudentFirstName" type="text" name="firstName" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="lastName">Last Name:</label><br>
+                            <input id="editInputStudentLastName" type="text" name="lastName" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="classNumber">Classroom:</label><br>
+                            <input id="editInputStudentClassNumber" type="number" name="classNumber" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="checkedOut">Checked Out?</label><br>
+                            <input id="editInputStudentCheckedOut" type="checkbox" name="checkedOut"><br>
+                        </div>
+                        <div class="inputField">
+                            <button type="submit" class="btn">Submit</button>
+                            <button type="reset" onclick="hideDiv('editInputStudent')">Cancel</button>
+                        </div>
+                    </form>
+                    <form>
+                        <input id="idToRemove" type="hidden">
+                    </form>
+                </div>
             </div>
-            <div class="inputField">
-                <label for="firstName">First Name:</label><br>
-                <input type="text" name="firstName" required><br>
+        </div>
+        <div style="float: left">
+            <table>
+                <thead>
+                <tr>
+                    <th onclick="sortCarColumn('carPlate')">License Plate</th>
+                    <th onclick="sortCarColumn('carMake')">Make</th>
+                    <th onclick="sortCarColumn('carModel')">Model</th>
+                    <th onclick="sortCarColumn('carColor')">Color</th>
+                    <th onclick="sortCarColumn('guest')">Guest?</th>
+                </tr>
+                </thead>
+                <tbody id="carTable"></tbody>
+            </table>
+            <div class="buttonSection" style="float: left">
+                <button type="button" onclick="unhideDiv('addInputCar')">Add Vehicle</button>
+                <button type="button" onclick="unhideDiv('editInputCar')">Edit Vehicle</button>
+                <form action="database/remove" method="post" style="display: inline-block" >
+                    <input type="submit" name="removeButton" value="Remove Vehicle" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}">
+                    <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
+                </form>
             </div>
-            <div class="inputField">
-                <label for="lastName">Last Name:</label><br>
-                <input type="text" name="lastName" required><br>
+            <div class="inputSection" id="addInputStudent" style="clear: both; display: none">
+                <form action="database/add" method="post">
+                    <div class="inputField">
+                        <label for="id">Student ID:</label><br>
+                        <input type="number" name="id" required><br>
+                    </div>
+                    <div class="inputField">
+                        <label for="firstName">First Name:</label><br>
+                        <input type="text" name="firstName" required><br>
+                    </div>
+                    <div class="inputField">
+                        <label for="lastName">Last Name:</label><br>
+                        <input type="text" name="lastName" required><br>
+                    </div>
+                    <div class="inputField">
+                        <label for="classNumber">Classroom:</label><br>
+                        <input type="number" name="classNumber" required><br>
+                    </div>
+                    <div class="inputField">
+                        <button type="submit" class="btn">Submit</button>
+                        <button type="reset" onclick="hideDiv('addInputStudent')">Cancel</button>
+                    </div>
+                </form>
             </div>
-            <div class="inputField">
-                <label for="classNumber">Classroom:</label><br>
-                <input type="number" name="classNumber" required><br>
-            </div>
-            <div class="inputField">
-                <button type="submit" class="btn">Submit</button>
-                <button type="reset" onclick="hideDiv('addInput')">Cancel</button>
-            </div>
-        </form>
-    </div>
-    <div class="inputSection" id="editInput" style="clear: both; display: none">
-        <form action="database/edit" method="post">
-            <div class="inputField">
-                <label for="id">Student ID:</label><br>
-                <input id="editInputId" type="number" name="id" value="test" required>
-                <input id="editOgId" type="hidden" name="ogId" value="test" style="display: inline-block" required><br>
-            </div>
-            <div class="inputField">
-                <label for="firstName">First Name:</label><br>
-                <input id="editInputFirstName" type="text" name="firstName" required><br>
-            </div>
-            <div class="inputField">
-                <label for="lastName">Last Name:</label><br>
-                <input id="editInputLastName" type="text" name="lastName" required><br>
-            </div>
-            <div class="inputField">
-                <label for="classNumber">Classroom:</label><br>
-                <input id="editInputClassNumber" type="number" name="classNumber" required><br>
-            </div>
-            <div class="inputField">
-                <label for="checkedOut">Checked Out?</label><br>
-                <input id="editInputCheckedOut" type="checkbox" name="checkedOut"><br>
-            </div>
-            <div class="inputField">
-                <button type="submit" class="btn">Submit</button>
-                <button type="reset" onclick="hideDiv('editInput')">Cancel</button>
-            </div>
-        </form>
-        <form>
-            <input id="idToRemove" type="hidden">
-        </form>
+        </div>
     </div>
 </body>
 

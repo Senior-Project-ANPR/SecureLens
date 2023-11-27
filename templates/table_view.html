@@ -8,6 +8,9 @@
         font-size: 13px;
         border-collapse: collapse;
         margin: 5px;
+        height: 600px;
+        overflow-y: scroll;
+        display: block;
     }
 
     td, th {
@@ -17,8 +20,11 @@
 
     th {
         background-color: #ffffff;
+        border: 1px solid #a8a8a8;
         font-size: 14px;
         padding: 7px;
+        position: sticky;
+        top: 0;
     }
 
     tr:nth-child(odd) {
@@ -40,6 +46,10 @@
 
     .inputField {
         padding: 3px;
+    }
+
+    .inputText {
+        text-transform: capitalize;
     }
 
     .buttonSection {
@@ -65,7 +75,10 @@
     let tempInt = 0;
     let studentSelectedKey;
     let studentSelectedRow;
-    let selectedRowIndex;
+    let studentSelectedRowIndex;
+    let carSelectedRow;
+    let carSelectedRowIndex;
+
     let filteredCarsTable = []
 
     //Concatenate our array of cells into one string, then split the string at the commas
@@ -122,7 +135,7 @@
         {
             dataHtml += `<tr onclick="selectStudent(${student.id}, this);
                             drawSelectBorder(this);
-                            selectedRowIndex = this.rowIndex - 1;">
+                            studentSelectedRowIndex = this.rowIndex - 1;">
                         <td>${student.id}</td>
                         <td>${student.firstName}</td>
                         <td>${student.lastName}</td>
@@ -145,7 +158,7 @@
         //Iterate through our table of car data and append each row to dataHtml
         for(let car of car_tableData)
         {
-            dataHtml += `<tr onclick="selectCar(${car.id}, ${car.carPlate}, this);" >
+            dataHtml += `<tr onclick="selectCar(this)" >
                         <td>${car.carPlate}</td>
                         <td>${car.carMake}</td>
                         <td>${car.carModel}</td>
@@ -225,13 +238,33 @@
         //Reload our car table
         loadCarTableData(filteredCarsTable);
 
-        document.getElementById("removeButton").disabled = false;
-        document.getElementById("editButton").disabled = false;
+        //Enable our student edit and remove buttons, as well as our car add button now that a student is selected
+        document.getElementById("removeStudentButton").disabled = false;
+        document.getElementById("editStudentButton").disabled = false;
+        document.getElementById("addCarButton").disabled = false;
+
+        //Disable our car edit, change, and remove buttons, as no car should be selected when a new student is clicked
+        document.getElementById("editCarButton").disabled = true;
+        document.getElementById("removeCarButton").disabled = true;
+        document.getElementById("changeCarIdButton").disabled = true;
+
+        //Hide the car edit form when a student is selected, to make sure we aren't editing an unselected
+        //student's vehicle
+        hideDiv('editInputCar');
+
     }
 
-    function selectCar(carPlate, sid, row)
+    function selectCar(row)
     {
+        //Update various variables with the info of our newly selected row and draw a border around it
+        carSelectedRow = row;
+        carSelectedRowIndex = row.rowIndex - 1;
+        drawSelectBorder(row);
 
+        //Also, enable the edit, change, and remove buttons
+        document.getElementById("editCarButton").disabled = false;
+        document.getElementById("changeCarIdButton").disabled = false;
+        document.getElementById("removeCarButton").disabled = false;
     }
 
     //Draw a thick border around the currently selected row
@@ -268,67 +301,144 @@
     //Unhide an element so it displays on the page, while hiding all other hidden elements
     function unhideDiv(element)
     {
-        console.log(element);
-        let temp = document.getElementById(element);
-        temp.style.display = "block";
+        document.getElementById(element).style.display = "block";
 
-        //If the element we're unhiding is editInputStudent, populate the text fields with the currently
-        //selected student's info and hide addInputStudent
-        if(element == 'editInputStudent')
+        //Perform different operations based on which element we're unhiding
+        switch (element)
         {
-            //However, if no student is selected, throw an alert
-            if (!studentSelectedRow)
-            {
+
+            //If the element we're unhiding is addInputStudent, hide editInputStudent
+            case 'addInputStudent':
                 hideDiv('editInputStudent');
-                alert("Please select a student first");
                 return;
-            }
-            hideDiv('addInputStudent');
-            document.getElementById('editInputStudentId').value = student_tableData[selectedRowIndex].id;
-            document.getElementById('editOgId').value = student_tableData[selectedRowIndex].id;
-            document.getElementById('editInputStudentFirstName').value = student_tableData[selectedRowIndex].firstName;
-            document.getElementById('editInputStudentLastName').value = student_tableData[selectedRowIndex].lastName;
-            document.getElementById('editInputStudentClassNumber').value = student_tableData[selectedRowIndex].classNumber;
-            document.getElementById('editInputStudentCheckedOut').value = (student_tableData[selectedRowIndex].checkedOut === 'true');
-        }
 
-        //If the element we're unhiding is addInputStudent, hide editInputStudent
-        if(element == 'addInputStudent')
-        {
-            hideDiv('editInputStudent');
+            //If the element we're unhiding is editInputStudent, populate the text fields with the currently
+            //selected student's info and hide addInputStudent
+            case 'editInputStudent':
+                //However, if no student is selected, throw an alert
+                if (!studentSelectedRow)
+                {
+                    hideDiv('editInputStudent');
+                    alert("Please select a student first");
+                    return;
+                }
+                hideDiv('addInputStudent');
+                document.getElementById('editInputStudentId').value = student_tableData[studentSelectedRowIndex].id;
+                document.getElementById('editOgId').value = student_tableData[studentSelectedRowIndex].id;
+                document.getElementById('editInputStudentFirstName').value = student_tableData[studentSelectedRowIndex].firstName;
+                document.getElementById('editInputStudentLastName').value = student_tableData[studentSelectedRowIndex].lastName;
+                document.getElementById('editInputStudentClassNumber').value = student_tableData[studentSelectedRowIndex].classNumber;
+                document.getElementById('editInputStudentCheckedOut').value = (student_tableData[studentSelectedRowIndex].checkedOut === 'true');
+                return;
+
+            //Then we do the same things for the car table
+            case 'addInputCar':
+                //The only difference here is that we need to set a hidden html form value to the selected student's ID
+                //so we can associate the car with the selected student
+                document.getElementById('addInputCarId').value = student_tableData[studentSelectedRowIndex].id;
+                hideDiv('editInputCar');
+                return;
+
+            case 'editInputCar':
+                hideDiv('addInputCar')
+                document.getElementById('editInputCarPlate').value = filteredCarsTable[carSelectedRowIndex].carPlate;
+                document.getElementById('editOgPlate').value = filteredCarsTable[carSelectedRowIndex].carPlate;
+                document.getElementById('editInputCarMake').value = filteredCarsTable[carSelectedRowIndex].carMake;
+                document.getElementById('editInputCarModel').value = filteredCarsTable[carSelectedRowIndex].carModel;
+                document.getElementById('editInputCarColor').value = filteredCarsTable[carSelectedRowIndex].carColor;
+                document.getElementById('editInputCarGuest').value = filteredCarsTable[carSelectedRowIndex].guest;
+                document.getElementById('editInputCarId').value = student_tableData[studentSelectedRowIndex].id;
+                return;
+
+            default:
+                break;
         }
     }
 
     function removeStudent()
     {
-        let confirmTrigger = false;
         //If there is a currently selected student
         if (studentSelectedRow)
         {
-            confirmTrigger = true;
-            let tempFirstName = student_tableData[selectedRowIndex].firstName;
-            let tempLastName = student_tableData[selectedRowIndex].lastName;
-            let tempId = student_tableData[selectedRowIndex].id;
-
             //Set our hidden form's value to the student's id
-            document.getElementById('removeButtonId').value = tempId;
+            document.getElementById('studentRemoveId').value = student_tableData[studentSelectedRowIndex].id;
+            return true;
         }
         else
         {
             alert("You must select a student first.")
         }
 
-        return confirmTrigger;
+        return false;
+    }
+
+    function removeCar()
+    {
+        //If there is a currently selected car
+        if (carSelectedRow)
+        {
+            //Set our hidden form values to the car plate and student id
+            document.getElementById('carRemovePlate').value = filteredCarsTable[carSelectedRowIndex].carPlate;
+            document.getElementById('carRemoveId').value = student_tableData[studentSelectedRowIndex].id;
+            return true;
+        }
+
+        return false;
+
+    }
+
+    function transferCarId()
+    {
+        let input;
+        //If a car is currently selected in the table
+        if (carSelectedRow)
+        {
+            //Prompt the user to input the student id they wish to send the vehicle to
+            input = prompt("Enter the Student ID you wish to transfer this vehicle to.");
+            //Check to make sure the id input by the user only consists of numbers
+            if (!/^[0-9]+$/.test(input) || !input)
+            {
+                //If not, alert them their input is invalid and stop there
+                alert("Error: the Student ID must consist of only numbers.");
+                return false;
+            }
+
+            //If the input is correct, now we need to check if that student id exists in the database
+            for (let i = 0; i < student_tableData.length; i++)
+            {
+                //If it does, pass the relevant data and return true so we can continue with the process
+                if (student_tableData[i].id == input)
+                {
+                    document.getElementById('changeCarId').value = input;
+                    document.getElementById('changeCarOgId').value = filteredCarsTable[carSelectedRowIndex].id;
+                    document.getElementById('changeCarPlate').value = filteredCarsTable[carSelectedRowIndex].carPlate;
+                    console.log(filteredCarsTable[carSelectedRowIndex].carPlate)
+                    console.log(document.getElementById('changeCarPlate').value)
+
+                    return true;
+                }
+            }
+            //Otherwise, inform the user that the given id doesn't exist
+            alert("Error: the provided Student ID does not exist within the database.");
+        }
+        return false;
     }
 
 </script>
 
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Database View</title>
 </head>
 
 <body>
+    <div style="padding: 6px">
+        <a href="/admin_view">
+            <button type="button">
+                Return to Admin View
+            </button>
+        </a>
+    </div>
     <div class="tableSection">
         <div style="float: left">
             <table style="float: left;">
@@ -346,10 +456,10 @@
             <div>
                 <div class="buttonSection" style="clear: both">
                     <button type="button" onclick="unhideDiv('addInputStudent')">Add Student</button>
-                    <button id="editButton" type="button" onclick="unhideDiv('editInputStudent')" disabled>Edit Student</button>
+                    <button id="editStudentButton" type="button" onclick="unhideDiv('editInputStudent')" disabled>Edit Student</button>
                     <form action="database/remove/student" method="post" style="display: inline-block">
-                            <input id="removeButton" type="submit" name="removeButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}" disabled>
-                            <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
+                            <input id="removeStudentButton" type="submit" name="removeStudentButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}" disabled>
+                            <input id="studentRemoveId" type="hidden" name="studentRemoveId" value="null">
                     </form>
                 </div>
                 <div class="inputSection" id="addInputStudent" style="clear: both; display: none">
@@ -360,11 +470,11 @@
                         </div>
                         <div class="inputField">
                             <label for="firstName">First Name:</label><br>
-                            <input type="text" name="firstName" required><br>
+                            <input class="inputText" type="text" name="firstName" required><br>
                         </div>
                         <div class="inputField">
                             <label for="lastName">Last Name:</label><br>
-                            <input type="text" name="lastName" required><br>
+                            <input class="inputText" type="text" name="lastName" required><br>
                         </div>
                         <div class="inputField">
                             <label for="classNumber">Classroom:</label><br>
@@ -380,16 +490,16 @@
                     <form action="database/edit/student" method="post">
                         <div class="inputField">
                             <label for="id">Student ID:</label><br>
-                            <input id="editInputStudentId" type="number" name="id" value="test" required>
-                            <input id="editOgId" type="hidden" name="ogId" value="test" style="display: inline-block" required><br>
+                            <input id="editInputStudentId" type="number" name="id" required>
+                            <input id="editOgId" type="hidden" name="ogId" style="display: inline-block" required><br>
                         </div>
                         <div class="inputField">
                             <label for="firstName">First Name:</label><br>
-                            <input id="editInputStudentFirstName" type="text" name="firstName" required><br>
+                            <input class="inputText" id="editInputStudentFirstName" type="text" name="firstName" required><br>
                         </div>
                         <div class="inputField">
                             <label for="lastName">Last Name:</label><br>
-                            <input id="editInputStudentLastName" type="text" name="lastName" required><br>
+                            <input class="inputText" id="editInputStudentLastName" type="text" name="lastName" required><br>
                         </div>
                         <div class="inputField">
                             <label for="classNumber">Classroom:</label><br>
@@ -424,37 +534,85 @@
                 <tbody id="carTable"></tbody>
             </table>
             <div class="buttonSection" style="float: left">
-                <button type="button" onclick="unhideDiv('addInputCar')">Add Vehicle</button>
-                <button type="button" onclick="unhideDiv('editInputCar')">Edit Vehicle</button>
-                <form action="database/remove" method="post" style="display: inline-block" >
-                    <input type="submit" name="removeButton" value="Remove Vehicle" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}">
-                    <input id="removeButtonId" type="hidden" name="removeButtonId" value="null">
+                <button id="addCarButton" type="button" onclick="unhideDiv('addInputCar')" disabled>Add Vehicle</button>
+                <button id="editCarButton" type="button" onclick="unhideDiv('editInputCar')" disabled>Edit Vehicle</button>
+                <form action="database/transfer" method="post" style="display: inline-block">
+                    <input id="changeCarIdButton" type="submit" name="changeCarIdButton" value="Transfer Vehicle" onclick="return transferCarId()" disabled>
+                    <input id="changeCarPlate" type="hidden" name="changeCarPlate" value="null">
+                    <input id="changeCarId" type="hidden" name="changeCarId" value="null">
+                    <input id="changeCarOgId" type="hidden" name="changeCarOgId" value="null">
+                </form>
+                <form action="database/remove/car" method="post" style="display: inline-block">
+                    <input id="removeCarButton" type="submit" name="removeCarButton" value="Remove Vehicle" onclick="if (removeCar() == true){return confirm('Are you sure you wish to delete this vehicle from the database? This cannot be undone!')}" disabled>
+                    <input id="carRemovePlate" type="hidden" name="carRemovePlate" value="null">
+                    <input id="carRemoveId" type="hidden" name="carRemoveId" value="null">
                 </form>
             </div>
-            <div class="inputSection" id="addInputStudent" style="clear: both; display: none">
-                <form action="database/add" method="post">
+            <div class="inputSection" id="addInputCar" style="clear: both; display: none">
+                <form action="database/add/car" method="post">
                     <div class="inputField">
-                        <label for="id">Student ID:</label><br>
-                        <input type="number" name="id" required><br>
+                        <label for="carPlate">License Plate:</label><br>
+                        <input type="text" name="carPlate" style="text-transform: uppercase" required><br>
                     </div>
                     <div class="inputField">
-                        <label for="firstName">First Name:</label><br>
-                        <input type="text" name="firstName" required><br>
+                        <label for="carMake">Make:</label><br>
+                        <input class="inputText" type="text" name="carMake" required><br>
                     </div>
                     <div class="inputField">
-                        <label for="lastName">Last Name:</label><br>
-                        <input type="text" name="lastName" required><br>
+                        <label for="carModel">Model:</label><br>
+                        <input class="inputText" type="text" name="carModel" required><br>
                     </div>
                     <div class="inputField">
-                        <label for="classNumber">Classroom:</label><br>
-                        <input type="number" name="classNumber" required><br>
+                        <label for="carColor">Color:</label><br>
+                        <input class="inputText" type="text" name="carColor" required><br>
+                    </div>
+                    <div class="inputField">
+                        <label for="guest">Guest?</label><br>
+                        <input type="checkbox" name="guest"><br>
+                    </div>
+                    <div>
+                        <label for="id"></label>
+                        <input id="addInputCarId" type="hidden" name="id" required>
                     </div>
                     <div class="inputField">
                         <button type="submit" class="btn">Submit</button>
-                        <button type="reset" onclick="hideDiv('addInputStudent')">Cancel</button>
+                        <button type="reset" onclick="hideDiv('addInputCar')">Cancel</button>
                     </div>
                 </form>
             </div>
+            <div class="inputSection" id="editInputCar" style="clear: both; display: none">
+                    <form action="database/edit/car" method="post">
+                        <div class="inputField">
+                            <label for="carPlate">License Plate:</label><br>
+                            <input id="editInputCarPlate" type="text" name="carPlate" style="text-transform: uppercase" required>
+                            <input id="editOgPlate" type="hidden" name="ogPlate" style="display: inline-block" required>
+                            <input id="editInputCarId" type="hidden" name="id" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="carMake">Make:</label><br>
+                            <input class="inputText" id="editInputCarMake" type="text" name="carMake" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="carModel">Model:</label><br>
+                            <input class="inputText" id="editInputCarModel" type="text" name="carModel" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="carColor">Color:</label><br>
+                            <input class="inputText" id="editInputCarColor" type="text" name="carColor" required><br>
+                        </div>
+                        <div class="inputField">
+                            <label for="guest">Guest?</label><br>
+                            <input id="editInputCarGuest" type="checkbox" name="guest"><br>
+                        </div>
+                        <div class="inputField">
+                            <button type="submit" class="btn">Submit</button>
+                            <button type="reset" onclick="hideDiv('editInputCar')">Cancel</button>
+                        </div>
+                    </form>
+                    <form>
+                        <input id="idToRemove" type="hidden">
+                    </form>
+                </div>
         </div>
     </div>
 </body>

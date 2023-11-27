@@ -293,6 +293,9 @@ def checkout(student_id):
 
 @app.route('/admin_view/database', methods=["GET", "POST"])
 def table_view():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
     #Grab all elements from our student_tbl & car_tbl and save them as arrays, where each cell is an element
     allStudents = student_tbl.query.all()
     allCars = car_tbl.query.all()
@@ -319,6 +322,9 @@ def table_view():
 #Route to add a student to the database after submission of the add form
 @app.route('/admin_view/database/add/student', methods=["GET", "POST"])
 def table_view_addStudent():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
     #Grab all the entries from the form and store them in local variables
     idIn = request.form.get("id")
     firstNameIn = request.form.get("firstName")
@@ -350,6 +356,9 @@ def table_view_addStudent():
 
 @app.route('/admin_view/database/edit/student', methods=["GET", "POST"])
 def table_view_editStudent():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
     #Grab all the entries from the form and store them in local variables, as well as the original
     #id of the student we're editing
     idIn = request.form.get("id")
@@ -380,9 +389,11 @@ def table_view_editStudent():
 
 @app.route('/admin_view/database/remove/student', methods=["GET", "POST"])
 def table_view_removeStudent():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
 
     #Get the id of the currently selected student
-    idIn = request.form.get("removeButtonId")
+    idIn = request.form.get("studentRemoveId")
 
     #If the id is null (the default value for when no student is selected), redirect to the error page, otherwise
     #delete the student from the db, commit the changes, and reload the page
@@ -394,8 +405,141 @@ def table_view_removeStudent():
     db.session.commit()
     return redirect(url_for('table_view'))
 
+@app.route('/admin_view/database/add/car', methods=["GET", "POST"])
+def table_view_addCar():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
+    #Grab all the entries from the form and store them in local variables, as well as the selected
+    #student's ID so we can connect the car to them
+    plateIn = request.form.get("carPlate")
+    idIn = request.form.get("id")
+    makeIn = request.form.get("carMake")
+    modelIn = request.form.get("carModel")
+    colorIn = request.form.get("carColor")
+    guestIn = request.form.get("guest")
+
+    # Since HTML doesn't return a boolean for checkboxes, we check if the incoming data exists or not.
+    # If it does, that means the checkbox was checked
+    if guestIn:
+        guestIn = 1
+    else:
+        guestIn = 0
+
+    #debug
+    print(f"{idIn}")
+    print(f"{plateIn}")
+    print(f"{makeIn}")
+    print(f"{modelIn}")
+    print(f"{colorIn}")
+    print(f"{guestIn}")
+    #debug
+
+    #Format the entries received into a row for our car_tbl
+    inCar = car_tbl(
+        carPlate = plateIn,
+        carMake = makeIn,
+        carModel = modelIn,
+        carColor = colorIn,
+        id = idIn,
+        guest = guestIn
+    )
+
+    #Add the row to the database and commit the change
+    db.session.add(inCar)
+    db.session.commit()
+
+    #redirect back to the database view
+    return redirect(url_for('table_view'))
+
+@app.route('/admin_view/database/edit/car', methods=["GET", "POST"])
+def table_view_editCar():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
+    #Grab all the entries from the form and store them in local variables, as well as the car's original plate
+    #so we don't try to query the edited value
+    plateIn = request.form.get("carPlate").upper()
+    ogPlate = request.form.get("ogPlate")
+    idIn = request.form.get("id")
+    makeIn = request.form.get("carMake")
+    modelIn = request.form.get("carModel")
+    colorIn = request.form.get("carColor")
+    guestIn = request.form.get("guest")
+
+
+    #Find the car we're editing in the database and change its data to the edited info
+    editRow = car_tbl.query.filter_by(carPlate=ogPlate, id=idIn).first()
+    print(f"{ogPlate}")
+    print(f"{idIn}")
+    print(f"{editRow}")
+
+    editRow.carPlate = plateIn
+    editRow.carMake = makeIn
+    editRow.carModel = modelIn
+    editRow.carColor = colorIn
+    editRow.guest = guestIn
+
+    #Since HTML doesn't return a boolean for checkboxes, we check if the incoming data exists or not.
+    #If it does, that means the checkbox was checked
+    if guestIn:
+        editRow.guest = 1
+    else:
+        editRow.guest = 0
+
+    #Commit our changes and go back to database view
+    db.session.commit()
+
+    return redirect(url_for('table_view'))
+
+@app.route('/admin_view/database/remove/car', methods=["GET", "POST"])
+def table_view_removeCar():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
+    #Get the plate number and associated student ID of the currently selected car
+    plateIn = request.form.get("carRemovePlate")
+    idIn = request.form.get("carRemoveId")
+
+    #If the id is null (the default value for when no student is selected), redirect to the error page, otherwise
+    #delete the student from the db, commit the changes, and reload the page
+    if (idIn == "null" or plateIn == "null"):
+        return redirect(url_for('table_view_error'))
+    else:
+        car_tbl.query.filter_by(carPlate=plateIn, id=idIn).delete()
+
+    #Commit our changes and go back to database view
+    db.session.commit()
+    return redirect(url_for('table_view'))
+
+@app.route('/admin_view/database/transfer', methods=["GET", "POST"])
+def table_view_changeCarId():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
+
+    #Get the plate number, original student id, and new student id of the car
+    plateIn = request.form.get("changeCarPlate")
+    idIn = request.form.get("changeCarId")
+    ogId = request.form.get("changeCarOgId")
+
+    print(f"{plateIn}, {idIn}, {ogId}")
+
+    editRow = car_tbl.query.filter_by(carPlate=plateIn, id=ogId).first()
+
+    #Likewise if the query fails, return the error page
+    if not editRow:
+        return redirect(url_for('table_view_error'))
+
+    editRow.id = idIn
+
+    # Commit our changes and go back to database view
+    db.session.commit()
+    return redirect(url_for('table_view'))
+
 @app.route('/admin_view/database/error', methods=["GET"])
 def table_view_error():
+    if flask_login.current_user.accountType != "admin":
+        return redirect(url_for('log_in_page'))
 
     return redirect(url_for('table_view'))
 

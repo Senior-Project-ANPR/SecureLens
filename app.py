@@ -194,24 +194,23 @@ def video_feed():
 #so we set up GET and POST, so we can use them
 @app.route('/', methods=["GET", "POST"])
 def log_in_page():
-    #If info is POSTed from the webpage...
     if request.method == "POST":
-        #Save the Username and Password our user input
         input_username = request.form.get("Username")
-        input_password = request.form.get("Password")
-        #Search the database for a user_acct with a username matching the input username
+        input_password_hashed = request.form.get("Password")
+
         user = user_acct.query.filter_by(username=input_username).first()
-        #If no such user is found, redirect back to the landing page
+
         if not user:
             return redirect('/')
-        #Otherwise, if we did find a user with that username, hash the password input and compare it with
-        #the already hashed value in our database
-        if check_password_hash(user.password, input_password):
-            #If they match, log in the user and take them to the camera view page
+
+        # Compare the hashed password with the one stored in the database
+        if check_password_hash(user.password, input_password_hashed):
+            # Successfully authenticated
             login_user(user)
-            print("Database Password: ", user.password)
             return redirect('/admin_view')
+
     return render_template('index.html')
+
 
 
 @app.route('/checkout/<int:student_id>')

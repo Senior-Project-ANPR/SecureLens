@@ -8,7 +8,7 @@
         font-size: 13px;
         border-collapse: collapse;
         margin: 5px;
-        height: 600px;
+        height: 40%;
         overflow-y: scroll;
         display: block;
     }
@@ -76,10 +76,10 @@
     let studentSelectedKey;
     let studentSelectedRow;
     let studentSelectedRowIndex;
+    let filteredStudentsTable = [];
     let carSelectedRow;
     let carSelectedRowIndex;
-
-    let filteredCarsTable = []
+    let filteredCarsTable = [];
 
     //Concatenate our array of cells into one string, then split the string at the commas
     //This polishes the data so we can easily work with it
@@ -424,6 +424,27 @@
         return false;
     }
 
+    function checkOutStudent()
+    {
+        let checkoutUrl = '/checkout/';
+        let tempString = studentSelectedKey.toString()
+        checkoutUrl.concat(tempString);
+        console.log(checkoutUrl);
+        window.location.replace(checkoutUrl);
+    }
+
+    function searchStudent()
+    {
+        if(document.getElementById('searchStudentFirstName').value)
+        {
+            console.log('true');
+        }
+        else
+        {
+            console.log('false');
+        }
+    }
+
 </script>
 
 <head>
@@ -438,6 +459,10 @@
                 Return to Admin View
             </button>
         </a>
+    </div>
+    <div class="inputSection">
+        <input id="searchStudentFirstName" class="inputText" type="text" name="searchFirstName">
+        <button onclick="searchStudent()">Search</button>
     </div>
     <div class="tableSection">
         <div style="float: left">
@@ -457,6 +482,7 @@
                 <div class="buttonSection" style="clear: both">
                     <button type="button" onclick="unhideDiv('addInputStudent')">Add Student</button>
                     <button id="editStudentButton" type="button" onclick="unhideDiv('editInputStudent')" disabled>Edit Student</button>
+                    <button onclick="checkOutStudent()">Check Out</button>
                     <form action="database/remove/student" method="post" style="display: inline-block">
                             <input id="removeStudentButton" type="submit" name="removeStudentButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}" disabled>
                             <input id="studentRemoveId" type="hidden" name="studentRemoveId" value="null">

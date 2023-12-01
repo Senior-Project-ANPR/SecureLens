@@ -289,7 +289,7 @@ def checkout(student_id):
     #Get the student's classroom and redirect back to that page once we're done updating the database
     temp = student_tbl.query.filter_by(id=student_id).first()
     classroom = temp.classNumber
-    return redirect(url_for('release_students', classroom=classroom))
+    return redirect(url_for('table_view', classroom=classroom))
 
 @app.route('/admin_view/database', methods=["GET", "POST"])
 def table_view():
@@ -327,8 +327,8 @@ def table_view_addStudent():
 
     #Grab all the entries from the form and store them in local variables
     idIn = request.form.get("id")
-    firstNameIn = request.form.get("firstName")
-    lastNameIn = request.form.get("lastName")
+    firstNameIn = request.form.get("firstName").capitalize()
+    lastNameIn = request.form.get("lastName").capitalize()
     classNumberIn = request.form.get("classNumber")
 
     #debug
@@ -363,10 +363,11 @@ def table_view_editStudent():
     #id of the student we're editing
     idIn = request.form.get("id")
     ogId = request.form.get("ogId")
-    firstNameIn = request.form.get("firstName")
-    lastNameIn = request.form.get("lastName")
+    firstNameIn = request.form.get("firstName").capitalize()
+    lastNameIn = request.form.get("lastName").capitalize()
     classNumberIn = request.form.get("classNumber")
     checkedOutIn = request.form.get("checkedOut")
+
 
     #Find the student we're editing in the database and change its data to the edited info
     editRow = student_tbl.query.filter_by(id=ogId).first()
@@ -375,9 +376,9 @@ def table_view_editStudent():
     editRow.firstName = firstNameIn
     editRow.lastName = lastNameIn
     editRow.classNumber = classNumberIn
-    #Since HTML doesn't return a boolean for checkboxes, we check if the incoming data exists or not.
-    #If it does, that means the checkbox was checked
-    if checkedOutIn:
+
+    #Convert our dropdown selection from a string into an actual boolean
+    if checkedOutIn == "true":
         editRow.checkedOut = 1
     else:
         editRow.checkedOut = 0
@@ -412,12 +413,13 @@ def table_view_addCar():
 
     #Grab all the entries from the form and store them in local variables, as well as the selected
     #student's ID so we can connect the car to them
-    plateIn = request.form.get("carPlate")
+    plateIn = request.form.get("carPlate").upper()
     idIn = request.form.get("id")
-    makeIn = request.form.get("carMake")
-    modelIn = request.form.get("carModel")
-    colorIn = request.form.get("carColor")
+    makeIn = request.form.get("carMake").capitalize()
+    modelIn = request.form.get("carModel").capitalize()
+    colorIn = request.form.get("carColor").capitalize()
     guestIn = request.form.get("guest")
+
 
     # Since HTML doesn't return a boolean for checkboxes, we check if the incoming data exists or not.
     # If it does, that means the checkbox was checked
@@ -462,9 +464,9 @@ def table_view_editCar():
     plateIn = request.form.get("carPlate").upper()
     ogPlate = request.form.get("ogPlate")
     idIn = request.form.get("id")
-    makeIn = request.form.get("carMake")
-    modelIn = request.form.get("carModel")
-    colorIn = request.form.get("carColor")
+    makeIn = request.form.get("carMake").capitalize()
+    modelIn = request.form.get("carModel").capitalize()
+    colorIn = request.form.get("carColor").capitalize()
     guestIn = request.form.get("guest")
 
 
@@ -480,9 +482,8 @@ def table_view_editCar():
     editRow.carColor = colorIn
     editRow.guest = guestIn
 
-    #Since HTML doesn't return a boolean for checkboxes, we check if the incoming data exists or not.
-    #If it does, that means the checkbox was checked
-    if guestIn:
+    #Convert our dropdown selection from a string into an actual boolean
+    if guestIn == "true":
         editRow.guest = 1
     else:
         editRow.guest = 0

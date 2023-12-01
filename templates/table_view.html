@@ -8,7 +8,7 @@
         font-size: 13px;
         border-collapse: collapse;
         margin: 5px;
-        height: 40%;
+        height: 55vh;
         overflow-y: scroll;
         display: block;
     }
@@ -77,6 +77,7 @@
     let studentSelectedRow;
     let studentSelectedRowIndex;
     let filteredStudentsTable = [];
+    let studentsTableCurrentlyFiltered = false;
     let carSelectedRow;
     let carSelectedRowIndex;
     let filteredCarsTable = [];
@@ -170,15 +171,36 @@
         tableBody.innerHTML = dataHtml;
     }
 
+    function clearCarTableData()
+    {
+        filteredCarsTable = [];
+        loadCarTableData(filteredCarsTable);
+    }
+
     function sortStudentColumn(columnName)
     {
         //Negate our sortDirection so it sorts the other way around
         sortDirection = !sortDirection;
+        console.log(studentsTableCurrentlyFiltered);
 
-        returnSortedColumn(sortDirection, columnName, "student");
+        //Check to see if our students table is currently filtered
+        if (!studentsTableCurrentlyFiltered)
+        {
+            //If not, sort the entire student table
+            returnSortedColumn(sortDirection, columnName, "student");
 
-        //Reload our table data
-        loadStudentTableData(student_tableData);
+            //Reload our table data
+            loadStudentTableData(student_tableData);
+        }
+        else
+        {
+            //Otherwise, only sort the filtered table
+            returnSortedColumn(sortDirection, columnName, "filteredStudent");
+
+            //Reload our table data
+            loadStudentTableData(filteredStudentsTable);
+        }
+
     }
 
     function sortCarColumn(columnName)
@@ -213,6 +235,14 @@
                         -(s1[columnName] > s2[columnName])
                 });
                 break;
+
+            case "filteredStudent":
+                filteredStudentsTable = filteredStudentsTable.sort((s1, s2) =>
+                {
+                    return sortDirection ? -(s1[columnName] < s2[columnName]) :
+                        -(s1[columnName] > s2[columnName])
+                });
+                break;
         }
 
     }
@@ -241,6 +271,7 @@
         //Enable our student edit and remove buttons, as well as our car add button now that a student is selected
         document.getElementById("removeStudentButton").disabled = false;
         document.getElementById("editStudentButton").disabled = false;
+        document.getElementById("checkOutStudentButton").disabled = false;
         document.getElementById("addCarButton").disabled = false;
 
         //Disable our car edit, change, and remove buttons, as no car should be selected when a new student is clicked
@@ -251,6 +282,7 @@
         //Hide the car edit form when a student is selected, to make sure we aren't editing an unselected
         //student's vehicle
         hideDiv('editInputCar');
+        hideDiv('editInputStudent');
 
     }
 
@@ -265,6 +297,8 @@
         document.getElementById("editCarButton").disabled = false;
         document.getElementById("changeCarIdButton").disabled = false;
         document.getElementById("removeCarButton").disabled = false;
+
+        console.log(carSelectedRowIndex);
     }
 
     //Draw a thick border around the currently selected row
@@ -350,6 +384,14 @@
                 document.getElementById('editInputCarId').value = student_tableData[studentSelectedRowIndex].id;
                 return;
 
+            case 'searchStudentSection':
+                hideDiv('searchCarSection');
+                return;
+                
+            case 'searchCarSection':
+                hideDiv('searchStudentSection');
+                return;
+
             default:
                 break;
         }
@@ -426,22 +468,526 @@
 
     function checkOutStudent()
     {
-        let checkoutUrl = '/checkout/';
-        let tempString = studentSelectedKey.toString()
-        checkoutUrl.concat(tempString);
+        let checkoutUrl = "/checkout/";
+        let tempString = studentSelectedKey.toString();
+        console.log(tempString);
+        checkoutUrl = checkoutUrl.concat(tempString);
         console.log(checkoutUrl);
         window.location.replace(checkoutUrl);
     }
 
     function searchStudent()
     {
-        if(document.getElementById('searchStudentFirstName').value)
+        //Set up a continue condition to tell us when to stop
+        let continueCondition = true;
+        filteredStudentsTable = [];
+        console.log("Is this popping twice?");
+
+        //If a student id was provided
+        if(document.getElementById('searchStudentId').value)
         {
-            console.log('true');
+            //Search through our main table and find any entry that matches the id
+            for (let i = 0; i < student_tableData.length; i++)
+            {
+                if (student_tableData[i].id == document.getElementById('searchStudentId').value)
+                {
+                    filteredStudentsTable.push(student_tableData[i]);
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
         }
+
+        //If a first name was provided
+        if(document.getElementById('searchStudentFirstName').value && continueCondition == true)
+        {
+            //Check if our table is empty
+            if (filteredStudentsTable.length == 0)
+            {
+                //If it is, go ahead and add any students whose first name matches the query from our main table
+                for (let i = 0; i < student_tableData.length; i++)
+                {
+                    if (student_tableData[i].firstName.toLowerCase() == document.getElementById('searchStudentFirstName').value.toLowerCase())
+                    {
+                        filteredStudentsTable.push(student_tableData[i]);
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredStudentsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredStudentsTable[i].firstName.toLowerCase() != document.getElementById('searchStudentFirstName').value.toLowerCase())
+                    {
+                        filteredStudentsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        console.log(JSON.parse(JSON.stringify(filteredStudentsTable)))
+        console.log(filteredStudentsTable.length)
+        //If a last name was provided
+        if(document.getElementById('searchStudentLastName').value && continueCondition == true)
+        {
+            //Check if our table is empty
+            if (filteredStudentsTable.length == 0)
+            {
+                //If it is, go ahead and add any students whose last name matches the query from our main table
+                for (let i = 0; i < student_tableData.length; i++)
+                {
+                    if (student_tableData[i].lastName.toLowerCase() == document.getElementById('searchStudentLastName').value.toLowerCase())
+                    {
+                        filteredStudentsTable.push(student_tableData[i]);
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                console.log(JSON.parse(JSON.stringify(filteredStudentsTable)))
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                console.log(filteredStudentsTable.length)
+                for (let i = filteredStudentsTable.length - 1; i >= 0; i--)
+                {
+                    console.log(i)
+                    if (filteredStudentsTable[i].lastName.toLowerCase() != document.getElementById('searchStudentLastName').value.toLowerCase())
+                    {
+                        console.log("^ Deleted")
+                        filteredStudentsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        if(document.getElementById('searchStudentClassNumber').value && continueCondition == true)
+        {
+            //Check if our table is empty
+            if (filteredStudentsTable.length == 0)
+            {
+                //If it is, go ahead and add any students whose classroom matches the query from our main table
+                for (let i = 0; i < student_tableData.length; i++)
+                {
+                    if (student_tableData[i].classNumber == document.getElementById('searchStudentClassNumber').value)
+                    {
+                        filteredStudentsTable.push(student_tableData[i]);
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredStudentsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredStudentsTable[i].classNumber != document.getElementById('searchStudentClassNumber').value)
+                    {
+                        filteredStudentsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        if(document.getElementById('searchStudentCheckedOut').value != "null" && continueCondition == true)
+        {
+            //Check if our table is empty
+            if (filteredStudentsTable.length == 0)
+            {
+                console.log("here?")
+                //If it is, go ahead and add any students whose first name matches the query from our main table
+                for (let i = 0; i < student_tableData.length; i++)
+                {
+                    if (student_tableData[i].checkedOut.toString() == document.getElementById('searchStudentCheckedOut').value.toString())
+                    {
+                        filteredStudentsTable.push(student_tableData[i]);
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredStudentsTable.length - 1; i >= 0; i--)
+                {
+                    console.log(document.getElementById('searchStudentCheckedOut').value.toString(), " vs ", filteredStudentsTable[i].checkedOut.toString())
+                    if (filteredStudentsTable[i].checkedOut !== document.getElementById('searchStudentCheckedOut').value)
+                    {
+                        console.log("should see this 3 times")
+                        filteredStudentsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredStudentsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+        console.log(JSON.parse(JSON.stringify(filteredStudentsTable)))
+        //If our filtered table is empty, return an error message and reload the main table
+        if(filteredStudentsTable.length == 0)
+        {
+            alert("No such student found!");
+            loadStudentTableData(student_tableData)
+            studentsTableCurrentlyFiltered = false;
+        }
+        //Otherwise, load our filtered table and set the student table as currently filtered
         else
         {
-            console.log('false');
+            loadStudentTableData(filteredStudentsTable);
+            studentsTableCurrentlyFiltered = true;
+        }
+    }
+
+    function searchCar()
+    {
+        let continueCondition = true;
+
+        filteredStudentsTable = [];
+        filteredCarsTable = [];
+
+        if(document.getElementById('searchCarPlate').value && continueCondition)
+        {
+            //Check if our table is empty
+            if (filteredCarsTable.length == 0)
+            {
+                //If it is, go ahead and add any cars whose make matches the query from our main table
+                for (let i = 0; i < car_tableData.length; i++)
+                {
+                    //However, since cars can be duplicated in the car table, we must weed out any duplicate entries
+                    //For this we use an addCondition that always starts at true
+                    let addCondition = true;
+                    //When we find a matching query
+                    if (car_tableData[i].carPlate.toLowerCase() == document.getElementById('searchCarPlate').value.toLowerCase())
+                    {
+                        //We iterate through our current filtered list and compare our current query's plate to all
+                        //plates in the filtered list at the moment
+                        for (let j = 0; j < filteredCarsTable.length; j++)
+                        {
+                            //If we find a match, don't add
+                            if (car_tableData[i].carPlate == filteredCarsTable[j].carPlate)
+                            {
+                                addCondition = false;
+                            }
+                        }
+                        if (addCondition)
+                        {
+                            filteredCarsTable.push(car_tableData[i]);
+                        }
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredCarsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredCarsTable[i].carPlate.toLowerCase() != document.getElementById('searchCarPlate').value.toLowerCase())
+                    {
+                        filteredCarsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        if(document.getElementById('searchCarMake').value && continueCondition)
+        {
+            //Check if our table is empty
+            if (filteredCarsTable.length == 0)
+            {
+                //If it is, go ahead and add any cars whose make matches the query from our main table
+                for (let i = 0; i < car_tableData.length; i++)
+                {
+                    //However, since cars can be duplicated in the car table, we must weed out any duplicate entries
+                    //For this we use an addCondition that always starts at true
+                    let addCondition = true;
+                    //When we find a matching query
+                    if (car_tableData[i].carMake.toLowerCase() == document.getElementById('searchCarMake').value.toLowerCase())
+                    {
+                        //We iterate through our current filtered list and compare our current query's plate to all
+                        //plates in the filtered list at the moment
+                        for (let j = 0; j < filteredCarsTable.length; j++)
+                        {
+                            //If we find a match, don't add
+                            if (car_tableData[i].carPlate == filteredCarsTable[j].carPlate)
+                            {
+                                addCondition = false;
+                            }
+                        }
+                        if (addCondition)
+                        {
+                            filteredCarsTable.push(car_tableData[i]);
+                        }
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredCarsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredCarsTable[i].carMake.toLowerCase() != document.getElementById('searchCarMake').value.toLowerCase())
+                    {
+                        filteredCarsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        if(document.getElementById('searchCarModel').value && continueCondition)
+        {
+            //Check if our table is empty
+            if (filteredCarsTable.length == 0)
+            {
+                //If it is, go ahead and add any cars whose make matches the query from our main table
+                for (let i = 0; i < car_tableData.length; i++)
+                {
+                    //However, since cars can be duplicated in the car table, we must weed out any duplicate entries
+                    //For this we use an addCondition that always starts at true
+                    let addCondition = true;
+                    //When we find a matching query
+                    if (car_tableData[i].carModel.toLowerCase() == document.getElementById('searchCarModel').value.toLowerCase())
+                    {
+                        //We iterate through our current filtered list and compare our current query's plate to all
+                        //plates in the filtered list at the moment
+                        for (let j = 0; j < filteredCarsTable.length; j++)
+                        {
+                            //If we find a match, don't add
+                            if (car_tableData[i].carPlate == filteredCarsTable[j].carPlate)
+                            {
+                                addCondition = false;
+                            }
+                        }
+                        if (addCondition)
+                        {
+                            filteredCarsTable.push(car_tableData[i]);
+                        }
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredCarsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredCarsTable[i].carModel.toLowerCase() != document.getElementById('searchCarModel').value.toLowerCase())
+                    {
+                        filteredCarsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        if(document.getElementById('searchCarColor').value && continueCondition)
+        {
+            //Check if our table is empty
+            if (filteredCarsTable.length == 0)
+            {
+                //If it is, go ahead and add any cars whose make matches the query from our main table
+                for (let i = 0; i < car_tableData.length; i++)
+                {
+                    //However, since cars can be duplicated in the car table, we must weed out any duplicate entries
+                    //For this we use an addCondition that always starts at true
+                    let addCondition = true;
+                    //When we find a matching query
+                    if (car_tableData[i].carColor.toLowerCase() == document.getElementById('searchCarColor').value.toLowerCase())
+                    {
+                        //We iterate through our current filtered list and compare our current query's plate to all
+                        //plates in the filtered list at the moment
+                        for (let j = 0; j < filteredCarsTable.length; j++)
+                        {
+                            //If we find a match, don't add
+                            if (car_tableData[i].carPlate == filteredCarsTable[j].carPlate)
+                            {
+                                addCondition = false;
+                            }
+                        }
+                        if (addCondition)
+                        {
+                            filteredCarsTable.push(car_tableData[i]);
+                        }
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredCarsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredCarsTable[i].carColor.toLowerCase() != document.getElementById('searchCarColor').value.toLowerCase())
+                    {
+                        filteredCarsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        if(document.getElementById('searchCarGuest').value != "null" && continueCondition)
+        {
+            //Check if our table is empty
+            if (filteredCarsTable.length == 0)
+            {
+                //If it is, go ahead and add any students whose first name matches the query from our main table
+                for (let i = 0; i < car_tableData.length; i++)
+                {
+                    if (car_tableData[i].guest.toString() == document.getElementById('searchCarGuest').value.toString())
+                    {
+                        filteredCarsTable.push(car_tableData[i]);
+                    }
+                }
+                //If we still haven't found anything, can the search as it is a dud
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+            else
+            {
+                //Otherwise we need to start *removing* entries that don't match up
+                //We count backwards to avoid any problems when filtering, as we're possibly shrinking the array
+                //on each iteration
+                for (let i = filteredCarsTable.length - 1; i >= 0; i--)
+                {
+                    if (filteredCarsTable[i].guest !== document.getElementById('searchCarGuest').value)
+                    {
+                        console.log("should see this 3 times")
+                        filteredCarsTable.splice(i, 1);
+                    }
+                }
+                //If our table has been emptied, set our continue condition to false so we know we can stop there.
+                if (filteredCarsTable.length == 0)
+                {
+                    continueCondition = false;
+                }
+            }
+        }
+
+        //If our filtered table is empty, return an error message, reload the main table, and unmark the student
+        //table as sorted
+        if(filteredCarsTable.length == 0)
+        {
+            alert("No such vehicle found!");
+            loadCarTableData(car_tableData);
+            loadStudentTableData(student_tableData);
+            studentsTableCurrentlyFiltered = false;
+        }
+        //Otherwise, load our filtered car table as well as a filtered student table holding all students connected
+        //to those cars
+        else
+        {
+            //Before we can add them, however, we must make sure they're not already in the filtered table so we can
+            //avoid duplicate entries like above
+            let addCondition = true;
+
+            //Iterate through our filteredCarsTable
+            for (let i = 0; i < filteredCarsTable.length; i++)
+            {
+                //Find an id in our student table that matches the id of the ith element of the filtered car table
+                //and store it in tempEntry
+                let tempEntry = student_tableData.find(({ id }) => id == filteredCarsTable[i].id);
+
+                //Now try to find an id in our filtered student table that matches tempEntry. If the query comes
+                //back as undefined, it means nothing was found and that student isn't in the table yet
+                if ((filteredStudentsTable.find(({ id }) => id == tempEntry.id)) == undefined)
+                {
+                    filteredStudentsTable.push(tempEntry);
+                }
+            }
+            loadStudentTableData(filteredStudentsTable);
+            loadCarTableData(filteredCarsTable);
+            studentsTableCurrentlyFiltered = true;
         }
     }
 
@@ -459,10 +1005,75 @@
                 Return to Admin View
             </button>
         </a>
+        <button onclick="unhideDiv('searchStudentSection')">
+            Search Student
+        </button>
+        <button onclick="unhideDiv('searchCarSection')">
+            Search Vehicle
+        </button>
+        <button onclick="loadStudentTableData(student_tableData); clearCarTableData();">
+            Clear Search
+        </button>
     </div>
-    <div class="inputSection">
-        <input id="searchStudentFirstName" class="inputText" type="text" name="searchFirstName">
-        <button onclick="searchStudent()">Search</button>
+    <div id="searchStudentSection" class="inputSection" style="display: none">
+        <div class="inputField">
+            <label for="searchStudentId">Student ID:</label><br>
+            <input id="searchStudentId" class="inputText" type="number" name="searchStudentId">
+        </div>
+        <div class="inputField">
+            <label for="searchStudentFirstName">First Name:</label><br>
+            <input id="searchStudentFirstName" class="inputText" type="text" name="searchStudentFirstName">
+        </div>
+        <div class="inputField">
+            <label for="searchStudentLastName">Last Name:</label><br>
+            <input id="searchStudentLastName" class="inputText" type="text" name="searchStudentLastName">
+        </div>
+        <div class="inputField">
+            <label for="searchStudentClassNumber">Classroom:</label><br>
+            <input id="searchStudentClassNumber" class="inputText" type="text" name="searchStudentClassNumber">
+        </div>
+        <div class="inputField">
+            <label for="searchStudentCheckedOut">Checked out?</label><br>
+            <select id="searchStudentCheckedOut" name="searchStudentCheckedOut">
+                <option value="null">N/A</option>
+                <option value="true">True</option>
+                <option value="false">False</option>
+            </select>
+        </div>
+        <div class="inputField">
+            <button onclick="searchStudent()">Search</button>
+            <button onclick="hideDiv('searchStudentSection')">Cancel</button>
+        </div>
+    </div>
+    <div id="searchCarSection" class="inputSection" style="display: none">
+        <div class="inputField">
+            <label for="searchCarPlate">License Plate:</label><br>
+            <input id="searchCarPlate" class="inputText" type="text" name="searchCarPlate">
+        </div>
+        <div class="inputField">
+            <label for="searchCarMake">Make:</label><br>
+            <input id="searchCarMake" class="inputText" type="text" name="searchCarMake">
+        </div>
+        <div class="inputField">
+            <label for="searchCarModel">Model:</label><br>
+            <input id="searchCarModel" class="inputText" type="text" name="searchCarModel">
+        </div>
+        <div class="inputField">
+            <label for="searchCarColor">Color:</label><br>
+            <input id="searchCarColor" class="inputText" type="text" name="searchCarColor">
+        </div>
+        <div class="inputField">
+            <label for="searchCarGuest">Guest?</label><br>
+            <select id="searchCarGuest" name="searchCarGuest">
+                <option value="null">N/A</option>
+                <option value="true">True</option>
+                <option value="false">False</option>
+            </select>
+        </div>
+        <div class="inputField">
+            <button onclick="searchCar()">Search</button>
+            <button onclick="hideDiv('searchCarSection')">Cancel</button>
+        </div>
     </div>
     <div class="tableSection">
         <div style="float: left">
@@ -482,10 +1093,10 @@
                 <div class="buttonSection" style="clear: both">
                     <button type="button" onclick="unhideDiv('addInputStudent')">Add Student</button>
                     <button id="editStudentButton" type="button" onclick="unhideDiv('editInputStudent')" disabled>Edit Student</button>
-                    <button onclick="checkOutStudent()">Check Out</button>
+                    <button id="checkOutStudentButton" onclick="checkOutStudent()" disabled>Check Out</button>
                     <form action="database/remove/student" method="post" style="display: inline-block">
                             <input id="removeStudentButton" type="submit" name="removeStudentButton" value="Remove Student" onclick="if (removeStudent() == true){return confirm('Are you sure you wish to delete this student from the database? This cannot be undone!')}" disabled>
-                            <input id="studentRemoveId" type="hidden" name="studentRemoveId" value="null">
+                            <input id="studentRemoveId" type="hidden" name="studentRemoveId">
                     </form>
                 </div>
                 <div class="inputSection" id="addInputStudent" style="clear: both; display: none">
@@ -533,11 +1144,14 @@
                         </div>
                         <div class="inputField">
                             <label for="checkedOut">Checked Out?</label><br>
-                            <input id="editInputStudentCheckedOut" type="checkbox" name="checkedOut"><br>
+                            <select id="editInputStudentCheckedOut" name="checkedOut">
+                                <option value="true">True</option>
+                                <option value="false">False</option>
+                            </select>
                         </div>
                         <div class="inputField">
                             <button type="submit" class="btn">Submit</button>
-                            <button type="reset" onclick="hideDiv('editInputStudent')">Cancel</button>
+                            <button type="reset" onclick="hideDiv('editInputStudent')" value="null">Cancel</button>
                         </div>
                     </form>
                     <form>
@@ -628,7 +1242,10 @@
                         </div>
                         <div class="inputField">
                             <label for="guest">Guest?</label><br>
-                            <input id="editInputCarGuest" type="checkbox" name="guest"><br>
+                            <select id="editInputCarGuest" name="guest">
+                                <option value="true">True</option>
+                                <option value="false">False</option>
+                            </select><br>
                         </div>
                         <div class="inputField">
                             <button type="submit" class="btn">Submit</button>

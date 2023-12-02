@@ -1,16 +1,13 @@
-import dataclasses
-from dataclasses import dataclass
-
-import flask_login
-from flask import Flask, render_template, Response, request, redirect, url_for, json, jsonify
+from flask import Flask, render_template, Response, request, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import jsonify
+from flask_restful import Resource, Api
 import cv2
-import pytesseract
-import os
-import sqlite3
+from ultralytics import YOLO
+import easyocr
 
 app = Flask(__name__)
 boostrap = Bootstrap(app)
@@ -74,11 +71,16 @@ with app.app_context():
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-cap = cv2.VideoCapture(0)
 
 desired_width = 854
 desired_height = 480
 IGNORED_WORD = "TEXAS"
+
+reader = easyocr.Reader(['en'])
+cap = cv2.VideoCapture(0)
+model_path = 'best.pt'
+model = YOLO(model_path)
+threshold = 0.5
 
 
 def generate_plates_improved():
@@ -89,62 +91,42 @@ def generate_plates_improved():
             break
 
         image = cv2.resize(image, (desired_width, desired_height))
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.bilateralFilter(gray, 11, 17, 17)
-        edges = cv2.Canny(gray, 170, 200)
-        cnts, new = cv2.findContours(edges.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:30]
-        NumberPlateCount = None
+        results = model(image)[0]
 
-        count = 0
-        name = 1
-        x = None
-        y = None
-        for i in cnts:
-            perimeter = cv2.arcLength(i, True)
-            approx = cv2.approxPolyDP(i, 0.02 * perimeter, True)
-            if len(approx) == 4:
-                NumberPlateCount = approx
-                x, y, w, h = cv2.boundingRect(i)
-                crp_img = image[y:y + h, x:x + w]
-                cv2.imwrite(str(name) + '.png', crp_img)
-                name += 1
+        for result in results.boxes.data.tolist():
+            x1, y1, x2, y2, score, class_id = result
+            class_name = results.names[int(class_id)]
 
-                break
+            if score > threshold:
+                cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
+                cv2.putText(image, class_name.upper(), (int(x1), int(y1 - 10)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
 
-        if NumberPlateCount is not None:
-            cv2.drawContours(image, [NumberPlateCount], -1, (0, 255, 0), 3)
+                if class_name == 'plate':
+                    plate_image = image[int(y1):int(y2), int(x1):int(x2)]
+                    gray_plate = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY)
+                    ocr_results = reader.readtext(gray_plate)
 
-        crp_img_loc = '1.png'
-        text = pytesseract.image_to_string(crp_img_loc,
-                                           config='--psm 12 -c tessedit_char_whitelist='
-                                                  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
-        text = text.replace(IGNORED_WORD, "").strip()
-        text = text.strip()
+                    detected_text = ' '.join([item[1] for item in ocr_results]).strip()
 
-        print("Number is : ", text)
+                    if detected_text:
+                        cv2.putText(image, "License Plate: " + detected_text, (int(x1), int(y1 - 40)),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-        if x is not None and y is not None:
-            cv2.putText(image, "License Plate: " + text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-        #Define our app context so we can access the database
-        with app.app_context():
-            #set tempRecords as a table whose contents are all rows attached to the read license plate
-            tempRecords = car_tbl.query.filter_by(carPlate=text).all()
-            #If tempStudent is not empty, iterate through it, grab the first and last name and classroom number of
-            #each row, and print them
-            if tempRecords:
-                for record in tempRecords:
-                    studentRecord = student_tbl.query.filter_by(id=record.id).first()
-                    tempFirstName = studentRecord.firstName
-                    tempLastName = studentRecord.lastName
-                    tempClassroom = studentRecord.classNumber
-                    print(f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
+                    with app.app_context():
+                        tempStudent = student_tbl.query.filter_by(carPlate=detected_text).all()
+                        if tempStudent:
+                            for record in tempStudent:
+                                tempFirstName = record.firstName
+                                tempLastName = record.lastName
+                                tempClassroom = record.classroom
+                                print(
+                                    f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
 
         _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -183,31 +165,23 @@ def load_user(user_id):
 #     user_acct.query.filter_by(username="test").delete()
 #     db.session.commit()
 
-@app.route('/admin_view')
-def admin_view():
-    #Authorize only admin accounts
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
 
+@app.route('/admin_view')
+@login_required
+def admin_view():
     return render_template('admin_view.html')
 @app.route('/release', methods=["POST", "GET"])
-
+@login_required
 def release():
-    #Authorize only admin & teacher accounts
-    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
-        return redirect(url_for('log_in_page'))
-
     if request.method == "POST":
         input_classroom = request.form.get("classroom")
         return redirect(f'/release/{input_classroom}')
 
     return render_template('release.html')
-@app.route('/student/<int:student_id>')
-def student_info(student_id):
-    #Authorize only admin & teacher accounts
-    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
-        return redirect(url_for('log_in_page'))
 
+@app.route('/student/<int:student_id>')
+@login_required
+def student_info(student_id):
     #Query our student database for the student associated with the given id, and query the car database
     #for all cars associated with that id
     studentCars = car_tbl.query.filter_by(id=student_id).all()
@@ -217,66 +191,48 @@ def student_info(student_id):
     return render_template('student_info.html', cars=studentCars, name=studentName)
 
 @app.route('/release/<int:classroom>')
+@login_required
 def release_students(classroom):
-    #Authorize only admin & teacher accounts
-    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
-        return redirect(url_for('log_in_page'))
-
     #Filter our student database down to only the students in the given classroom and pass that on to our
     #HTML template
     students = student_tbl.query.filter_by(classNumber=classroom).all()
     return render_template('release_students.html', students=students, classroom=classroom)
 
 @app.route('/cameraview')
+@login_required
 def cameraview():
-    #Authorize only admin accounts
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     return render_template('cameraview.html')
 
 @app.route('/video_feed')
 def video_feed():
-    #Authorize only admin accounts
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     return Response(generate_plates_improved(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 #Our main landing page/login page. We will need to receive and send text from the page,
 #so we set up GET and POST, so we can use them
 @app.route('/', methods=["GET", "POST"])
 def log_in_page():
-    #If info is POSTed from the webpage...
     if request.method == "POST":
-        #Save the Username and Password our user input
         input_username = request.form.get("Username")
-        input_password = request.form.get("Password")
-        #Search the database for a user_acct with a username matching the input username
+        input_password_hashed = request.form.get("Password")
+
         user = user_acct.query.filter_by(username=input_username).first()
-        #If no such user is found, redirect back to the landing page
+
         if not user:
             return redirect('/')
-        #Otherwise, if we did find a user with that username, hash the password input and compare it with
-        #the already hashed value in our database
-        if check_password_hash(user.password, input_password):
-            #If they match, log in the user and take them to a landing page dependent on their account type
+
+        # Compare the hashed password with the one stored in the database
+        if check_password_hash(user.password, input_password_hashed):
+            # Successfully authenticated
             login_user(user)
-            if user.accountType == "admin":
-                return redirect('/admin_view')
-            elif user.accountType == "teacher":
-                return redirect('/release')
-            else:
-                return redirect('/')
+            return redirect('/admin_view')
 
     return render_template('index.html')
 
-@app.route('/checkout/<int:student_id>')
-def checkout(student_id):
-    # Authorize only admin & teacher accounts
-    if flask_login.current_user.accountType != "admin" and flask_login.current_user.accountType != "teacher":
-        return redirect(url_for('log_in_page'))
 
+
+@app.route('/checkout/<int:student_id>')
+@login_required
+def checkout(student_id):
     #Define the change we'll be making to the checkedOut column
     checked_out = {
         'checkedOut': True
@@ -293,9 +249,6 @@ def checkout(student_id):
 
 @app.route('/admin_view/database', methods=["GET", "POST"])
 def table_view():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Grab all elements from our student_tbl & car_tbl and save them as arrays, where each cell is an element
     allStudents = student_tbl.query.all()
     allCars = car_tbl.query.all()
@@ -322,9 +275,6 @@ def table_view():
 #Route to add a student to the database after submission of the add form
 @app.route('/admin_view/database/add/student', methods=["GET", "POST"])
 def table_view_addStudent():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Grab all the entries from the form and store them in local variables
     idIn = request.form.get("id")
     firstNameIn = request.form.get("firstName").capitalize()
@@ -356,9 +306,6 @@ def table_view_addStudent():
 
 @app.route('/admin_view/database/edit/student', methods=["GET", "POST"])
 def table_view_editStudent():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Grab all the entries from the form and store them in local variables, as well as the original
     #id of the student we're editing
     idIn = request.form.get("id")
@@ -390,9 +337,6 @@ def table_view_editStudent():
 
 @app.route('/admin_view/database/remove/student', methods=["GET", "POST"])
 def table_view_removeStudent():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Get the id of the currently selected student
     idIn = request.form.get("studentRemoveId")
 
@@ -408,9 +352,6 @@ def table_view_removeStudent():
 
 @app.route('/admin_view/database/add/car', methods=["GET", "POST"])
 def table_view_addCar():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Grab all the entries from the form and store them in local variables, as well as the selected
     #student's ID so we can connect the car to them
     plateIn = request.form.get("carPlate").upper()
@@ -456,9 +397,6 @@ def table_view_addCar():
 
 @app.route('/admin_view/database/edit/car', methods=["GET", "POST"])
 def table_view_editCar():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Grab all the entries from the form and store them in local variables, as well as the car's original plate
     #so we don't try to query the edited value
     plateIn = request.form.get("carPlate").upper()
@@ -495,9 +433,6 @@ def table_view_editCar():
 
 @app.route('/admin_view/database/remove/car', methods=["GET", "POST"])
 def table_view_removeCar():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Get the plate number and associated student ID of the currently selected car
     plateIn = request.form.get("carRemovePlate")
     idIn = request.form.get("carRemoveId")
@@ -515,9 +450,6 @@ def table_view_removeCar():
 
 @app.route('/admin_view/database/transfer', methods=["GET", "POST"])
 def table_view_changeCarId():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     #Get the plate number, original student id, and new student id of the car
     plateIn = request.form.get("changeCarPlate")
     idIn = request.form.get("changeCarId")
@@ -539,10 +471,54 @@ def table_view_changeCarId():
 
 @app.route('/admin_view/database/error', methods=["GET"])
 def table_view_error():
-    if flask_login.current_user.accountType != "admin":
-        return redirect(url_for('log_in_page'))
-
     return redirect(url_for('table_view'))
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect('/')
+
+api = Api(app)
+
+class StudentSearchAPI(Resource):
+    def post(self):
+        data = request.get_json()
+        student_name = data.get('student_name')
+        teacher_name = data.get('teacher_name')
+        room_number = data.get('room_number')
+
+        students = student_tbl.query.filter_by(firstName=student_name, classroom=room_number).all()
+
+        serialized_students = [{
+            'id': student.id,
+            'firstName': student.firstName,
+            'lastName': student.lastName,
+            'classroom': student.classroom,
+            'carMake': student.carMake,
+            'carModel': student.carModel,
+            'carColor': student.carColor,
+            'carPlate': student.carPlate,
+            'guest': student.guest,
+            'checkedOut': student.checkedOut
+        } for student in students]
+
+        return jsonify(serialized_students)
+
+class StudentCheckoutAPI(Resource):
+    def post(self, student_id):
+        student=student_tbl.query.filter_by(id=student_id).first()
+        if student is None:
+            return jsonify({'error' : 'Not found'}), 404
+
+        student.checkedOut = True
+        db.session.commit()
+
+        return jsonify({'message' : 'Successfully checked out the student.'})
+
+api.add_resource(StudentSearchAPI, '/api/search')
+api.add_resource(StudentCheckoutAPI, '/api/checkout/<int:student_id>')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

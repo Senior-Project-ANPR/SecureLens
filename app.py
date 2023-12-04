@@ -108,18 +108,21 @@ def generate_plates_improved():
                     ocr_results = reader.readtext(gray_plate)
 
                     detected_text = ' '.join([item[1] for item in ocr_results]).strip()
+                    detected_text = detected_text.replace('-', '')
 
                     if detected_text:
                         cv2.putText(image, "License Plate: " + detected_text, (int(x1), int(y1 - 40)),
                                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
                     with app.app_context():
-                        tempStudent = student_tbl.query.filter_by(carPlate=detected_text).all()
+                        print(f"{detected_text}")
+                        tempStudent = car_tbl.query.filter_by(carPlate=detected_text).all()
                         if tempStudent:
                             for record in tempStudent:
-                                tempFirstName = record.firstName
-                                tempLastName = record.lastName
-                                tempClassroom = record.classroom
+                                selection = student_tbl.query.filter_by(id=record.id).first()
+                                tempFirstName = selection.firstName
+                                tempLastName = selection.lastName
+                                tempClassroom = selection.classNumber
                                 print(
                                     f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
 

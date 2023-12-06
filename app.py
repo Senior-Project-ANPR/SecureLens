@@ -246,7 +246,7 @@ def log_in_page():
             if user.accountType == 'admin':
                 return redirect('/admin_view')
             elif user.accountType == 'teacher':
-                return redirect('/release')
+                return redirect('/teacher_view')
 
     return render_template('index.html')
 

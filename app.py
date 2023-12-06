@@ -243,7 +243,10 @@ def log_in_page():
         if check_password_hash(user.password, input_password_hashed):
             # Successfully authenticated
             login_user(user)
-            return redirect('/admin_view')
+            if user.accountType == 'admin':
+                return redirect('/admin_view')
+            elif user.accountType == 'teacher':
+                return redirect('/release')
 
     return render_template('index.html')
 

@@ -178,6 +178,13 @@ def load_user(user_id):
 @login_required
 def admin_view():
     return render_template('admin_view.html')
+
+@app.route('/teacher_view')
+@login_required
+def teacher_view():
+    return render_template('teacher_view.html')
+
+
 @app.route('/release', methods=["POST", "GET"])
 @login_required
 def release():

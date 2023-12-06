@@ -8,6 +8,7 @@ from flask_restful import Resource, Api
 import cv2
 from ultralytics import YOLO
 import easyocr
+import re
 
 app = Flask(__name__)
 boostrap = Bootstrap(app)
@@ -82,6 +83,7 @@ model_path = 'best.pt'
 model = YOLO(model_path)
 threshold = 0.5
 
+detected_plates = []
 
 def generate_plates_improved():
     while True:
@@ -99,32 +101,35 @@ def generate_plates_improved():
 
             if score > threshold:
                 cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
-                cv2.putText(image, class_name.upper(), (int(x1), int(y1 - 10)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
 
                 if class_name == 'plate':
                     plate_image = image[int(y1):int(y2), int(x1):int(x2)]
                     gray_plate = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY)
                     ocr_results = reader.readtext(gray_plate)
 
-                    detected_text = ' '.join([item[1] for item in ocr_results]).strip()
-                    detected_text = detected_text.replace('-', '')
+                    detected_text = ' '.join([item[1] for item in ocr_results]).strip().upper()
+                    match = re.search(r'\b\w{3}-\w{4}\b', detected_text)
+                    formatted_plate = match.group() if match else "Not Found"
 
-                    if detected_text:
-                        cv2.putText(image, "License Plate: " + detected_text, (int(x1), int(y1 - 40)),
+                    if formatted_plate != "Not Found" and formatted_plate not in detected_plates:
+                        detected_plates.append(formatted_plate)
+
+                    if formatted_plate != "Not Found":
+                        cv2.putText(image, "License Plate: " + formatted_plate, (int(x1), int(y1 - 40)),
                                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
                     with app.app_context():
-                        print(f"{detected_text}")
-                        tempStudent = car_tbl.query.filter_by(carPlate=detected_text).all()
-                        if tempStudent:
-                            for record in tempStudent:
-                                selection = student_tbl.query.filter_by(id=record.id).first()
-                                tempFirstName = selection.firstName
-                                tempLastName = selection.lastName
-                                tempClassroom = selection.classNumber
-                                print(
-                                    f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
+                        if formatted_plate != "Not Found":
+                            print(f"{formatted_plate}")
+                            tempStudent = car_tbl.query.filter_by(carPlate=formatted_plate).all()
+                            if tempStudent:
+                                for record in tempStudent:
+                                    selection = student_tbl.query.filter_by(id=record.id).first()
+                                    tempFirstName = selection.firstName
+                                    tempLastName = selection.lastName
+                                    tempClassroom = selection.classNumber
+                                    print(
+                                        f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
 
         _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()

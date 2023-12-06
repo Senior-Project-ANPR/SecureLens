@@ -120,8 +120,9 @@ def generate_plates_improved():
 
                     with app.app_context():
                         if formatted_plate != "Not Found":
-                            print(f"{formatted_plate}")
-                            tempStudent = car_tbl.query.filter_by(carPlate=formatted_plate).all()
+                            db_formatted_plate = formatted_plate.replace('-', '')
+                            print(f"{db_formatted_plate}")
+                            tempStudent = car_tbl.query.filter_by(carPlate=db_formatted_plate).all()
                             if tempStudent:
                                 for record in tempStudent:
                                     selection = student_tbl.query.filter_by(id=record.id).first()
@@ -130,6 +131,9 @@ def generate_plates_improved():
                                     tempClassroom = selection.classNumber
                                     print(
                                         f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
+                                if formatted_plate not in detected_plates:
+                                    detected_plates.append(formatted_plate)
+                                print(f"{detected_plates}")
 
         _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()

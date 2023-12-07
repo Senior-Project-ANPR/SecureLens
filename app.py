@@ -84,6 +84,8 @@ model = YOLO(model_path)
 threshold = 0.5
 
 detected_plates = []
+#An array that'll hold the sids for all students whose cars have been read by the camera but not checked out yet
+released_students = [348297930, 636464655, 123158132, 453968089, 474867967, 847326248, 854678567]
 
 def generate_plates_improved():
     while True:
@@ -131,6 +133,10 @@ def generate_plates_improved():
                                     tempClassroom = selection.classNumber
                                     print(
                                         f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
+                                    # Check if the student is already checked out, and if not add their id to released_students
+                                    if selection.checkedOut != 1:
+                                        released_students.append(selection.id)
+                                        print(f"{released_students}")
                                 if formatted_plate not in detected_plates:
                                     detected_plates.append(formatted_plate)
                                 print(f"{detected_plates}")
@@ -212,9 +218,13 @@ def student_info(student_id):
 @app.route('/release/<int:classroom>')
 @login_required
 def release_students(classroom):
-    #Filter our student database down to only the students in the given classroom and pass that on to our
-    #HTML template
-    students = student_tbl.query.filter_by(classNumber=classroom).all()
+    students = []
+    #Filter our student database down to only the students in the given classroom whose vehicles have arrived and pass
+    #that on to our HTML template
+    for sid in released_students:
+        if student_tbl.query.filter_by(id=sid, classNumber=classroom).first():
+            students.append(student_tbl.query.filter_by(id=sid, classNumber=classroom).first())
+    print(f"{students}")
     return render_template('release_students.html', students=students, classroom=classroom)
 
 @app.route('/cameraview')
@@ -264,8 +274,13 @@ def checkout(student_id):
     student = db.session.query(student_tbl).filter_by(id=student_id).update(checked_out)
     db.session.commit()
 
+    #Additionally, find that student_id in our released_students array and remove it since they've been checked out
+    if student_id in released_students:
+        released_students.remove(student_id)
+
     #Get the student's classroom and redirect back to that page once we're done updating the database
     temp = student_tbl.query.filter_by(id=student_id).first()
+
     classroom = temp.classNumber
     return redirect(url_for('table_view', classroom=classroom))
 

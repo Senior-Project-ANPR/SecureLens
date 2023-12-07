@@ -3,30 +3,39 @@
 <head>
     <title>Student Release</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Student Release for Classroom {{ classroom }}</h1>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Student Name</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in students %}
-                <tr>
-                    <td><a href="{{ url_for('student_info', student_id=record.id) }}">{{ record.firstName }} {{ record.lastName }}</a></td>
-                    <td><a href="{{ url_for('checkout', student_id=record.id) }}">Checkout Student</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <a href="/release"><button>Return to Classroom Select</button></a>
-    </div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div hx-get="/release/{{ classroom }}" hx-trigger="load delay:1s">
+        <div class="container">
+            <h1>Student Release for Classroom {{ classroom }}</h1>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if students is defined and students|length > 0 %}
+                        {% for record in students %}
+                        <tr>
+                            <td><a href="{{ url_for('student_info', student_id=record.id) }}">{{ record.firstName }} {{ record.lastName }}</a></td>
+                            <td><a href="{{ url_for('checkout', student_id=record.id) }}">Checkout Student</a></td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            <a href="/release"><button>Return to Classroom Select</button></a>
+        </div>
+    </div>
+
 </body>
 </html>

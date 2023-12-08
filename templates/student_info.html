@@ -1,14 +1,22 @@
 <!DOCTYPE html>
 <html>
+<style>
+    hr {
+      width: 300px;
+      margin-left: 0;
+    }
+</style>
 <head>
     <title>Student Information</title>
 </head>
 <body>
     <h1>Student Information</h1>
     <p>Name: {{ name.firstName }} {{ name.lastName }}</p>
+    <hr>
     {% for record in cars %}
     <p>Vehicle: {{ record.carColor }} {{ record.carMake }} {{ record.carModel }}</p>
     <p>License Plate: {{ record.carPlate }}</p>
+    <hr>
     {%  endfor  %}
     <p><a href="{{ url_for('release_students', classroom=name.classNumber) }}">Classroom: {{ name.classNumber }}</a></p>
     <p>Checked Out? {{ name.checkedOut }}</p>

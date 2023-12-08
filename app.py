@@ -1,3 +1,4 @@
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, render_template, Response, request, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -85,7 +86,35 @@ threshold = 0.5
 
 detected_plates = []
 #An array that'll hold the sids for all students whose cars have been read by the camera but not checked out yet
-released_students = [348297930, 636464655, 123158132, 453968089, 474867967, 847326248, 854678567]
+released_students = [123456788, 348297930, 636464655, 123158132, 453968089, 474867967, 847326248, 854678567]
+
+#Function run by our automated database maintainer.
+#It resets every student's checkedOut status to false and deletes any guest cars in the database
+def run_db_maintenance():
+    with app.app_context():
+        student_tbl.query.update({student_tbl.checkedOut: 0})
+        car_tbl.query.filter_by(guest=1).delete()
+
+        db.session.commit()
+
+#Set the hour and minute for the db reset to the value saved in our txt file
+inFile = open("schedule.txt", "r")
+dbResetHour = inFile.readline()
+dbResetMinute = inFile.readline()
+inFile.close()
+
+#Our automated database maintainer. Sets up a background scheduler to keep track of the time and what to run
+scheduler = BackgroundScheduler()
+#Add a job to our scheduler to run run_db_maintenance at the given hour and minute of every day
+scheduler.add_job(
+    func=run_db_maintenance,
+    trigger="cron",
+    id="resetScheduler",
+    max_instances=1,
+    hour=dbResetHour,
+    minute=dbResetMinute
+)
+scheduler.start()
 
 def generate_plates_improved():
     while True:
@@ -156,6 +185,7 @@ def generate_plates_improved():
 @login_manager.user_loader
 def load_user(user_id):
     return user_acct.query.get(user_id)
+
 
 #Uncomment to add a test account to the login database
 #We use generate_password_hash to avoid saving plaintext passwords in our database
@@ -292,6 +322,11 @@ def table_view():
     studentList = []
     carList = []
 
+    inFile = open("schedule.txt", "r")
+    hour = inFile.readline()
+    minute = inFile.readline()
+    inFile.close()
+
     for student in allStudents:
         studentList.append(student.id)
         studentList.append(student.firstName)
@@ -307,7 +342,11 @@ def table_view():
         carList.append(car.id)
         carList.append(car.guest)
 
-    return render_template('table_view.html', students=studentList, cars=carList)
+    return render_template('table_view.html',
+                           students=studentList,
+                           cars=carList,
+                           hour=hour.rstrip(),
+                           minute=minute.rstrip())
 
 #Route to add a student to the database after submission of the add form
 @app.route('/admin_view/database/add/student', methods=["GET", "POST"])
@@ -509,6 +548,41 @@ def table_view_changeCarId():
 @app.route('/admin_view/database/error', methods=["GET"])
 def table_view_error():
     return redirect(url_for('table_view'))
+
+@app.route('/admin_view/update_reset', methods=["GET", "POST"])
+def change_db_reset():
+    #Grab our new reset hour, minute, and ampm flag from our form
+    newHour = request.form.get("resetHour")
+    newMinute = request.form.get("resetMinute")
+    ampm = request.form.get("ampmSelect")
+
+    #If our ampm flag was 0, it means the time is in the AM
+    if ampm == "0":
+        #Double check if we're trying to set 12 AM, so we can set it to 0
+        if int(newHour) == 12:
+            newHour = 0
+        #So we open schedule.txt and overwrite it wth our new hour and minute
+        inFile = open("schedule.txt", "w")
+        inFile.writelines([str(newHour), "\n", newMinute])
+        inFile.close()
+    #Otherwise we're looking at a PM time
+    else:
+        #In this case, we set newHour to an int instead of a string so we can add 12 to it, thus making it
+        #a correct 24h time. However, we first check if we're trying to set 12 PM. If so, we skip.
+        if int(newHour) != 12:
+            newHour = int(newHour)
+            newHour += 12
+        #Then open schedule.txt and overwrite it wth our new hour and minute
+        inFile = open("schedule.txt", "w")
+        inFile.writelines([str(newHour), "\n", newMinute])
+        inFile.close()
+
+    #Reschedule our database reset job with our new time, so it takes effect immediately.
+    scheduler.reschedule_job(job_id="resetScheduler", trigger='cron', hour=newHour, minute=newMinute)
+
+    #Then return back to the database view
+    return redirect(url_for('table_view'))
+
 
 @app.route('/logout')
 @login_required

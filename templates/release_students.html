@@ -16,7 +16,7 @@
                 <thead>
                     <tr>
                         <th>Student Name</th>
-                        <th>Actions</th>
+                        <th>Student ID</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -24,7 +24,7 @@
                         {% for record in students %}
                         <tr>
                             <td><a href="{{ url_for('student_info', student_id=record.id) }}">{{ record.firstName }} {{ record.lastName }}</a></td>
-                            <td><a href="{{ url_for('checkout', student_id=record.id) }}">Checkout Student</a></td>
+                            <td>{{ record.id }}</td>
                         </tr>
                         {% endfor %}
                     {% else %}

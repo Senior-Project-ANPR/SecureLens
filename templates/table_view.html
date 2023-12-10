@@ -174,6 +174,7 @@
     function clearCarTableData()
     {
         filteredCarsTable = [];
+        studentsTableCurrentlyFiltered = false;
         loadCarTableData(filteredCarsTable);
     }
 
@@ -373,7 +374,9 @@
                 hideDiv('editInputCar');
                 return;
 
+            //Unhide the Edit Vehicle section
             case 'editInputCar':
+                //Hide our Add Vehicle section and fill out the edit section with the appropriate data
                 hideDiv('addInputCar')
                 document.getElementById('editInputCarPlate').value = filteredCarsTable[carSelectedRowIndex].carPlate;
                 document.getElementById('editOgPlate').value = filteredCarsTable[carSelectedRowIndex].carPlate;
@@ -384,12 +387,57 @@
                 document.getElementById('editInputCarId').value = student_tableData[studentSelectedRowIndex].id;
                 return;
 
+            //Unhide the Search Student section
             case 'searchStudentSection':
+                //Simply hide the Vehicle Search and Database Reset Info sections
                 hideDiv('searchCarSection');
+                hideDiv('updateResetSection');
                 return;
-                
+
+            //Unhide the Search Vehicle section
             case 'searchCarSection':
+                //Simply hide the Student Search and Database Reset Info sections
                 hideDiv('searchStudentSection');
+                hideDiv('updateResetSection');
+                return;
+
+            //Unhide the Database Reset Info section
+            case 'updateResetSection':
+                //Hide the Student and Vehicle Search sections
+                hideDiv('searchCarSection');
+                hideDiv('searchStudentSection');
+
+                //Set our reset form's hour and minute to the current reset hour and minute
+                //Plus, check if the hour is 0 so we can display 12 AM instead
+                //(I know the '+ 0' is redundant, but javascript fails to recognize that anything is there
+                //unless I put it ¯\_(ツ)_/¯)
+                if ({{ hour }} + 0 == 0)
+                {
+                    document.getElementById('resetHour').value = 12;
+                    document.getElementById('ampmSelect').value = 0;
+                }
+                //Check if the hour is 12 so we can return 12 PM
+                else if ({{ hour }} + 0 == 12)
+                {
+                    document.getElementById('resetHour').value = 12;
+                    document.getElementById('ampmSelect').value = 1;
+                }
+                //If our hour < 12, set AM
+                else if ({{ hour }} + 0 < 12)
+                {
+                    document.getElementById('resetHour').value = {{ hour }} + 0;
+                    document.getElementById('ampmSelect').value = 0;
+                }
+                //If all of these fail, set PM and subtract 12 from the current hour so it fits within 12h time
+                else
+                {
+                    document.getElementById('resetHour').value = {{ hour }} - 12;
+                    document.getElementById('ampmSelect').value = 1;
+                }
+                document.getElementById('resetMinute').value = {{ minute }} + 0;
+
+                //Then add a leading zero to the minute field if it needs it
+                resetMinuteLeadingZero();
                 return;
 
             default:
@@ -468,12 +516,24 @@
 
     function checkOutStudent()
     {
+        //Set up the start of our checkout url
         let checkoutUrl = "/checkout/";
+        //Set up a tempstring that holds the student we want to check out's id
         let tempString = studentSelectedKey.toString();
-        console.log(tempString);
+        //Concatenate that student id onto the checkout url and redirect to that page
         checkoutUrl = checkoutUrl.concat(tempString);
-        console.log(checkoutUrl);
         window.location.replace(checkoutUrl);
+    }
+
+    function resetMinuteLeadingZero()
+    {
+        //Grab the current minute value from our reset input form (this function is called every time it changes)
+        let minuteValue = document.getElementById("resetMinute").value;
+        //If it's less than 10, add a leading zero to the display
+        if (minuteValue < 10)
+        {
+            document.getElementById("resetMinute").value = "0" + minuteValue
+        }
     }
 
     function searchStudent()
@@ -1014,6 +1074,9 @@
         <button onclick="loadStudentTableData(student_tableData); clearCarTableData();">
             Clear Search
         </button>
+        <button onclick="unhideDiv('updateResetSection')">
+            Database Reset Info
+        </button>
     </div>
     <div id="searchStudentSection" class="inputSection" style="display: none">
         <div class="inputField">
@@ -1073,6 +1136,23 @@
         <div class="inputField">
             <button onclick="searchCar()">Search</button>
             <button onclick="hideDiv('searchCarSection')">Cancel</button>
+        </div>
+    </div>
+    <div id="updateResetSection" class="inputSection" style="display: none">
+        <div class="inputField">
+            <form action="/admin_view/update_reset" method="post" id="updateResetForm" name="updateResetForm">
+                <label>Reset Time</label>
+                <span style="padding-left: 10px"></span>
+                <input id="resetHour" name="resetHour" type="number" min="1" max="12" value="11" style="width: 30px"> :
+                <input id="resetMinute" name="resetMinute" type="number" min="00" max="60" value="35" style="width: 30px" onchange="resetMinuteLeadingZero()">
+                <select id="ampmSelect" name="ampmSelect">
+                    <option value="0">AM</option>
+                    <option value="1">PM</option>
+                </select>
+                <span style="padding-left: 40px"></span>
+                <input type="submit" onclick="return confirm('Are you sure you wish to update the database reset time?')">
+                <button type="reset" onclick="hideDiv('updateResetSection')">Cancel</button>
+            </form>
         </div>
     </div>
     <div class="tableSection">

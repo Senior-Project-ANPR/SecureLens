@@ -1,3 +1,5 @@
+from operator import or_
+from flask import Flask, render_template, Response, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, render_template, Response, request, redirect, url_for
 from flask_bootstrap import Bootstrap
@@ -69,7 +71,7 @@ class user_acct(UserMixin, db.Model):
 with app.app_context():
     db.create_all()
 
-#Init LoginManager from Flask-Login
+# Init LoginManager from Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 
@@ -247,15 +249,15 @@ def student_info(student_id):
 
 @app.route('/release/<int:classroom>')
 @login_required
-def release_students(classroom):
+def release_students(room_number):
     students = []
     #Filter our student database down to only the students in the given classroom whose vehicles have arrived and pass
     #that on to our HTML template
     for sid in released_students:
-        if student_tbl.query.filter_by(id=sid, classNumber=classroom).first():
-            students.append(student_tbl.query.filter_by(id=sid, classNumber=classroom).first())
+        if student_tbl.query.filter_by(id=sid, classNumber=room_number).first():
+            students.append(student_tbl.query.filter_by(id=sid, classNumber=room_number).first())
     print(f"{students}")
-    return render_template('release_students.html', students=students, classroom=classroom)
+    return render_template('release_students.html', students=students, classroom=room_number)
 
 @app.route('/cameraview')
 @login_required
@@ -270,23 +272,33 @@ def video_feed():
 #so we set up GET and POST, so we can use them
 @app.route('/', methods=["GET", "POST"])
 def log_in_page():
+    #If info is POSTed from the webpage...
     if request.method == "POST":
+        #Save the Username and Password our user input
         input_username = request.form.get("Username")
-        input_password_hashed = request.form.get("Password")
+        input_password = request.form.get("Password")
 
         user = user_acct.query.filter_by(username=input_username).first()
 
-        if not user:
-            return redirect('/')
+        if not user or not check_password_hash(user.password, input_password):
+            if request.headers.get('User-Agent').startswith('Google'):  # Check if the request is from chrome
+                return redirect('/')
+            else:
+                return jsonify(success=False, message="Invalid username or password")
 
         # Compare the hashed password with the one stored in the database
-        if check_password_hash(user.password, input_password_hashed):
+        if check_password_hash(user.password, input_password):
             # Successfully authenticated
             login_user(user)
             if user.accountType == 'admin':
                 return redirect('/admin_view')
             elif user.accountType == 'teacher':
                 return redirect('/teacher_view')
+
+            if request.headers.get('User-Agent').startswith('Mozilla'):
+                return redirect('admin_view')
+            else:
+                return jsonify(success=True, message="Login Successful")
 
     return render_template('index.html')
 
@@ -595,37 +607,47 @@ api = Api(app)
 class StudentSearchAPI(Resource):
     def post(self):
         data = request.get_json()
-        student_name = data.get('student_name')
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
         teacher_name = data.get('teacher_name')
-        room_number = data.get('room_number')
+        class_number = data.get('class_number')
 
-        students = student_tbl.query.filter_by(firstName=student_name, classroom=room_number).all()
+        query = []
+        if first_name:
+            query.append(student_tbl.firstName == first_name)
+        if last_name:
+            query.append(student_tbl.lastName == last_name)
+        if class_number:
+            query.append(student_tbl.classNumber == class_number)
+
+        students = student_tbl.query.filter(or_(*query)).all()
 
         serialized_students = [{
             'id': student.id,
             'firstName': student.firstName,
             'lastName': student.lastName,
-            'classroom': student.classroom,
-            'carMake': student.carMake,
-            'carModel': student.carModel,
-            'carColor': student.carColor,
-            'carPlate': student.carPlate,
-            'guest': student.guest,
+            'classNumber': student.classNumber,
             'checkedOut': student.checkedOut
         } for student in students]
 
         return jsonify(serialized_students)
 
+
 class StudentCheckoutAPI(Resource):
     def post(self, student_id):
-        student=student_tbl.query.filter_by(id=student_id).first()
+        print(f"Student ID: {student_id}")  # Print the student ID
+
+        student = student_tbl.query.filter_by(id=student_id).first()
+        print(f"Student: {student}")  # Print the student object
+
         if student is None:
-            return jsonify({'error' : 'Not found'}), 404
+            return jsonify({'error': 'Not found'}), 404
 
         student.checkedOut = True
         db.session.commit()
 
-        return jsonify({'message' : 'Successfully checked out the student.'})
+        return jsonify({'message': 'Successfully checked out the student.'})
+
 
 api.add_resource(StudentSearchAPI, '/api/search')
 api.add_resource(StudentCheckoutAPI, '/api/checkout/<int:student_id>')

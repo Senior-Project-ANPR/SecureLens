@@ -144,8 +144,11 @@ def generate_plates_improved():
                     match = re.search(r'\b\w{3}-\w{4}\b', detected_text)
                     formatted_plate = match.group() if match else "Not Found"
 
+                    print(f"{formatted_plate}")
+
                     if formatted_plate != "Not Found" and formatted_plate not in detected_plates:
                         detected_plates.append(formatted_plate)
+                        print(f"{detected_plates}")
 
                     if formatted_plate != "Not Found":
                         cv2.putText(image, "License Plate: " + formatted_plate, (int(x1), int(y1 - 40)),
@@ -154,7 +157,6 @@ def generate_plates_improved():
                     with app.app_context():
                         if formatted_plate != "Not Found":
                             db_formatted_plate = formatted_plate.replace('-', '')
-                            print(f"{db_formatted_plate}")
                             tempStudent = car_tbl.query.filter_by(carPlate=db_formatted_plate).all()
                             if tempStudent:
                                 for record in tempStudent:
@@ -165,12 +167,9 @@ def generate_plates_improved():
                                     print(
                                         f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
                                     # Check if the student is already checked out, and if not add their id to released_students
-                                    if selection.checkedOut != 1:
+                                    if selection.checkedOut != 1 and selection.id not in released_students:
                                         released_students.append(selection.id)
-                                        print(f"{released_students}")
-                                if formatted_plate not in detected_plates:
-                                    detected_plates.append(formatted_plate)
-                                print(f"{detected_plates}")
+                            print(f"{released_students}")
 
         _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()

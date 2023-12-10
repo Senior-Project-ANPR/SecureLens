@@ -247,7 +247,7 @@ def student_info(student_id):
     #row for name and classroom
     return render_template('student_info.html', cars=studentCars, name=studentName)
 
-@app.route('/release/<int:classroom>')
+@app.route('/release/<int:room_number>')
 @login_required
 def release_students(room_number):
     students = []
@@ -257,7 +257,7 @@ def release_students(room_number):
         if student_tbl.query.filter_by(id=sid, classNumber=room_number).first():
             students.append(student_tbl.query.filter_by(id=sid, classNumber=room_number).first())
     print(f"{students}")
-    return render_template('release_students.html', students=students, classroom=room_number)
+    return render_template('release_students.html', students=students, room_number=room_number)
 
 @app.route('/cameraview')
 @login_required
@@ -324,7 +324,7 @@ def checkout(student_id):
     temp = student_tbl.query.filter_by(id=student_id).first()
 
     classroom = temp.classNumber
-    return redirect(url_for('table_view', classroom=classroom))
+    return redirect(url_for('table_view', room_number=classroom))
 
 @app.route('/admin_view/database', methods=["GET", "POST"])
 def table_view():

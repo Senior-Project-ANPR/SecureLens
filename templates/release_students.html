@@ -9,9 +9,9 @@
     <script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
 </head>
 <body>
-    <div hx-get="/release/{{ classroom }}" hx-trigger="load delay:1s">
+    <div hx-get="/release/{{ room_number }}" hx-trigger="load delay:1s">
         <div class="container">
-            <h1>Student Release for Classroom {{ classroom }}</h1>
+            <h1>Student Release for Classroom {{ room_number }}</h1>
             <table class="table">
                 <thead>
                     <tr>

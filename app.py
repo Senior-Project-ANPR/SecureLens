@@ -305,7 +305,7 @@ def log_in_page():
 
 
 
-@app.route('/checkout/<int:student_id>/<string:current_page>', methods=['POST']')
+@app.route('/checkout/<int:student_id>/<string:current_page>', methods=['POST'])
 @login_required
 def checkout(student_id):
 
@@ -657,6 +657,7 @@ class StudentSearchAPI(Resource):
 
 class StudentCheckoutAPI(Resource):
     def post(self, student_id):
+        global released_students
         print(f"Student ID: {student_id}")  # Print the student ID
 
         student = student_tbl.query.filter_by(id=student_id).first()
@@ -667,6 +668,9 @@ class StudentCheckoutAPI(Resource):
 
         student.checkedOut = True
         db.session.commit()
+
+        if student_id in released_students:
+            released_students.remove(student_id)
 
         return jsonify({'message': 'Successfully checked out the student.'})
 

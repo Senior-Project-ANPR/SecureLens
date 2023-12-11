@@ -305,7 +305,7 @@ def log_in_page():
 
 
 
-@app.route('/checkout/<int:student_id>/<string:current_page>', methods=['POST'])
+@app.route('/checkout/<int:student_id>/<string:current_page>', methods=['POST']')
 @login_required
 def checkout(student_id):
 
@@ -326,10 +326,7 @@ def checkout(student_id):
     temp = student_tbl.query.filter_by(id=student_id).first()
 
     classroom = temp.classNumber
-    if current_page == 'release_students':
-        return redirect(url_for('release_students', room_number=classroom))
-    else:  # Assume the current page is 'table_view'
-        return redirect(url_for('table_view', room_number=classroom))
+    return redirect(url_for('table_view', room_number=classroom))
 
 @app.route('/get_released_students', methods=["GET"])
 def get_released_students():
@@ -337,11 +334,10 @@ def get_released_students():
 
 @app.route('/update-released-students', methods=['POST'])
 def update_released_students():
-    new_released_students = request.get_json()
-    for student_id in new_released_students:
-        if student_id not in released_students:
-            released_students.append(student_id)
-    return jsonify(success=True)
+    released_students = request.get_json()
+    # Update the released students in your database
+    # The implementation will depend on your database
+    return '', 200
 
 @app.route('/add_to_released_students', methods=["POST"])
 def add_to_released_students():

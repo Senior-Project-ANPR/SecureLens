@@ -1,9 +1,6 @@
 from operator import or_
-<<<<<<< HEAD
-=======
 from flask import Flask, render_template, Response, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 from flask import Flask, render_template, Response, request, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -14,15 +11,11 @@ from flask_restful import Resource, Api
 import cv2
 from ultralytics import YOLO
 import easyocr
-<<<<<<< HEAD
-from flask_cors import CORS
-=======
 import re
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 
 app = Flask(__name__)
 boostrap = Bootstrap(app)
-CORS(app)
+
 
 #Create our main database session for our student database and a bind (parallel session) for our account database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite"
@@ -45,6 +38,24 @@ class student_tbl(db.Model):
     #guest = db.Column(db.Boolean, nullable=False, default=False)
     checkedOut = db.Column(db.Boolean, nullable=False, default=False)
 
+#Second is car_tbl, which holds each car's info, as well as a reference to the students associated with the cars.
+#This table will have duplicate entries for each different student associated with a car.
+#Primary Key: carPlate + id
+class car_tbl(db.Model):
+    carPlate = db.Column(db.String, nullable=False, primary_key=True, default="na")
+    carMake = db.Column(db.String)
+    carModel = db.Column(db.String)
+    carColor = db.Column(db.String)
+    guest = db.Column(db.Boolean, nullable=False, default=False)
+    id = db.Column(db.Integer, db.ForeignKey("student_tbl.id"), nullable=False, primary_key=True)
+
+#Third is class_tbl, which holds each classroom's info.
+#This table won't have any duplicate entries.
+#Primary Key: classNumber
+class class_tbl(db.Model):
+    classNumber = db.Column(db.Integer, unique=True, nullable=False, primary_key=True, default=99999)
+    grade = db.Column(db.Integer, nullable=False)
+    teacher = db.Column(db.String, nullable=False)
 
 #Create a table called user_acct that holds an id, username, and hashed password
 class user_acct(UserMixin, db.Model):
@@ -127,13 +138,9 @@ def generate_plates_improved():
                     gray_plate = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY)
                     ocr_results = reader.readtext(gray_plate)
 
-<<<<<<< HEAD
-                    detected_text = ' '.join([item[1] for item in ocr_results]).strip()
-=======
                     detected_text = ' '.join([item[1] for item in ocr_results]).strip().upper()
                     match = re.search(r'\b\w{3}-\w{4}\b', detected_text)
                     formatted_plate = match.group() if match else "Not Found"
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 
                     print(f"{formatted_plate}")
 
@@ -146,16 +153,6 @@ def generate_plates_improved():
                                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
                     with app.app_context():
-<<<<<<< HEAD
-                        tempStudent = student_tbl.query.filter_by(carPlate=detected_text).all()
-                        if tempStudent:
-                            for record in tempStudent:
-                                tempFirstName = record.firstName
-                                tempLastName = record.lastName
-                                tempClassroom = record.classroom
-                                print(
-                                    f"License Plate Recognized. Student: {tempFirstName} {tempLastName}, Classroom: {tempClassroom}")
-=======
                         if formatted_plate != "Not Found":
                             db_formatted_plate = formatted_plate.replace('-', '')
                             tempStudent = car_tbl.query.filter_by(carPlate=db_formatted_plate).all()
@@ -171,7 +168,6 @@ def generate_plates_improved():
                                     if selection.checkedOut != 1 and selection.id not in released_students:
                                         released_students.append(selection.id)
                             print(f"{released_students}")
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 
         _, buffer = cv2.imencode('.jpg', image)
         frame = buffer.tobytes()
@@ -251,21 +247,15 @@ def student_info(student_id):
 @app.route('/release/<int:room_number>')
 @login_required
 def release_students(room_number):
-<<<<<<< HEAD
-    #Filter our student database down to only the students in the given classroom and pass that on to our
-    #HTML template
-    students = student_tbl.query.filter_by(classNumber=room_number).all()
-    return render_template('release_students.html', students=students, classNumber=room_number)
-=======
     students = []
     #Filter our student database down to only the students in the given classroom whose vehicles have arrived and pass
     #that on to our HTML template
+    print(f"released_students: {released_students}")
     for sid in released_students:
         if student_tbl.query.filter_by(id=sid, classNumber=room_number).first():
             students.append(student_tbl.query.filter_by(id=sid, classNumber=room_number).first())
     print(f"{students}")
     return render_template('release_students.html', students=students, room_number=room_number)
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 
 @app.route('/cameraview')
 @login_required
@@ -296,54 +286,69 @@ def log_in_page():
 
         # Compare the hashed password with the one stored in the database
         if check_password_hash(user.password, input_password):
-            # Successfully authenticated
-            login_user(user)
-<<<<<<< HEAD
-=======
-            if user.accountType == 'admin':
-                return redirect('/admin_view')
-            elif user.accountType == 'teacher':
-                return redirect('/teacher_view')
-
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
-            if request.headers.get('User-Agent').startswith('Mozilla'):
-                return redirect('admin_view')
-            else:
-                return jsonify(success=True, message="Login Successful")
-<<<<<<< HEAD
-            
-=======
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
+        # Successfully authenticated
+                login_user(user)
+                if request.headers.get('User-Agent').startswith('Mozilla'):
+                # This is a web browser
+                    if user.accountType == 'admin':
+                        return redirect(url_for('admin_view'))
+                    elif user.accountType == 'teacher':
+                        return redirect(url_for('teacher_view'))
+                else:
+                    # This is likely the mobile app
+                    if user.accountType == 'admin':
+                        return jsonify(success=True, message="Login Successful", redirect_url='/admin_view')
+                    elif user.accountType == 'teacher':
+                        return jsonify(success=True, message="Login Successful", redirect_url='/teacher_view')
 
     return render_template('index.html')
 
 
 
-@app.route('/checkout/<int:student_id>')
+@app.route('/checkout/<int:student_id>/<string:current_page>', methods=['POST'])
 @login_required
 def checkout(student_id):
+
     #Define the change we'll be making to the checkedOut column
     checked_out = {
         'checkedOut': True
     }
-
+    #Additionally, find that student_id in our released_students array and remove it since they've been checked out)
+    if student_id in released_students:
+        released_students.remove(student_id)
+    
     #Filter our student database by the given id, update all rows with that id to be checked out, and commit the changes
     student = db.session.query(student_tbl).filter_by(id=student_id).update(checked_out)
     db.session.commit()
 
-    #Additionally, find that student_id in our released_students array and remove it since they've been checked out
-    if student_id in released_students:
-        released_students.remove(student_id)
 
     #Get the student's classroom and redirect back to that page once we're done updating the database
     temp = student_tbl.query.filter_by(id=student_id).first()
-<<<<<<< HEAD
-    classroom = temp.classroom
-    return redirect(url_for('release_students', classroom=classroom))
-=======
 
     classroom = temp.classNumber
-    return redirect(url_for('table_view', room_number=classroom))
+    if current_page == 'release_students':
+        return redirect(url_for('release_students', room_number=classroom))
+    else:  # Assume the current page is 'table_view'
+        return redirect(url_for('table_view', room_number=classroom))
+
+@app.route('/get_released_students', methods=["GET"])
+def get_released_students():
+    return jsonify(released_students)
+
+@app.route('/update-released-students', methods=['POST'])
+def update_released_students():
+    new_released_students = request.get_json()
+    for student_id in new_released_students:
+        if student_id not in released_students:
+            released_students.append(student_id)
+    return jsonify(success=True)
+
+@app.route('/add_to_released_students', methods=["POST"])
+def add_to_released_students():
+    student_id = request.json.get('studentId')
+    if student_id not in released_students:
+        released_students.append(student_id)
+    return jsonify(success=True)
 
 @app.route('/admin_view/database', methods=["GET", "POST"])
 def table_view():
@@ -579,7 +584,6 @@ def table_view_changeCarId():
 @app.route('/admin_view/database/error', methods=["GET"])
 def table_view_error():
     return redirect(url_for('table_view'))
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 
 @app.route('/admin_view/update_reset', methods=["GET", "POST"])
 def change_db_reset():
@@ -639,11 +643,8 @@ class StudentSearchAPI(Resource):
             query.append(student_tbl.lastName == last_name)
         if class_number:
             query.append(student_tbl.classNumber == class_number)
-<<<<<<< HEAD
-=======
 
         students = student_tbl.query.filter(or_(*query)).all()
->>>>>>> 774c1f15a153d9d62ea23e7cbb142f4c6546ee3d
 
         students = student_tbl.query.filter(or_(*query)).all()
     
